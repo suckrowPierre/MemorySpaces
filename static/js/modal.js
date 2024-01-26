@@ -1,43 +1,43 @@
 import { loginContent, submitPassword } from './login.js';
-import { loadQandA, submitAnswers } from './q-a.js';
+import { loadQuestionsAndAnswers, submitAnswers } from './q-a.js';
 
 var modal = document.getElementById("modal");
 
-document.getElementById("settings").addEventListener("click", openSettings);
-document.getElementById("close-modal").addEventListener("click", closeModal);
-document.getElementById("bubble1").addEventListener("click", () => bubbleClicked(1));
-document.getElementById("bubble2").addEventListener("click", () => bubbleClicked(2));
-document.getElementById("bubble3").addEventListener("click", () => bubbleClicked(3));
+document.addEventListener("click", (event) => {
+    const { id } = event.target;
+    if (id === "settings") openSettings();
+    else if (id === "close-modal") closeModal();
+    else if (id.startsWith("bubble")) bubbleClicked(parseInt(id[id.length - 1]));
+});
 
 async function openSettings() {
     openModal(loginContent);
-    document.getElementById('passwordInput').addEventListener('keydown', async function(event) {
+    const passwordInput = document.getElementById('passwordInput');
+    passwordInput.addEventListener('keydown', async (event) => {
         if (event.key === 'Enter') {
-            const password_unhashed = document.getElementById("passwordInput").value;
-            const success = await submitPassword(password_unhashed);
-            if (success) {
-                document.getElementById("modal-content").innerHTML = "Logged in successfully. Loading data...";
-                // Optionally, perform further actions after successful login
+            const password = passwordInput.value;
+            const isSuccess = await submitPassword(password);
+            if (isSuccess) {
+                document.getElementById("modal-content").textContent = "Logged in successfully. Loading data...";
             }
         }
     });
 }
 
-function bubbleClicked(index) {
+async function bubbleClicked(index) {
     openModal("loading...");
-    loadQandA().then(() => {
-        let submitButton = document.getElementById("submit-answers");
+    try {
+        await loadQuestionsAndAnswers();
+        const submitButton = document.getElementById("submit-answers");
         if (submitButton) {
-            submitButton.addEventListener("click", async () => {
-                const success = await submitAnswers(index);
-                if (success) {
-                    closeModal();
-                }
-            });
+            submitButton.onclick = async () => {
+                const isSuccess = await submitAnswers(index);
+                if (isSuccess) closeModal();
+            };
         }
-    }).catch(error => {
-        console.error('Error in loadQandA:', error);
-    });
+    } catch (error) {
+        console.error('Error in loadQuestionsAndAnswers:', error);
+    }
 }
 
 function openModal(content) {

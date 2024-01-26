@@ -1,4 +1,4 @@
-async function loadQandA() {
+async function loadQuestionsAndAnswers() {
     try {
         const response = await fetch('/questions', {
             method: 'GET',
@@ -7,40 +7,30 @@ async function loadQandA() {
             },
         });
         const data = await response.json();
-        if(data.questions){
-            document.getElementById("modal-content").innerHTML = getQandABlock(data.questions);
-            return Promise.resolve();
+        if (data.questions) {
+            document.getElementById("modal-content").innerHTML = getQuestionsAndAnswersBlock(data.questions);
         }
     } catch (error) {
         console.error('Error:', error);
     }
 }
 
-
-function getQandABlock(questions){
-    var questionBlock = "";
-    for (var i = 0; i < questions.length; i++){
-        questionBlock += `
+function getQuestionsAndAnswersBlock(questions) {
+    return questions.map((question, index) => `
         <div class="question-answer">
-        <h1 class="question">${questions[i]}</h1>
-        <input class="answer" type="text" id="answer${i}"></input>
+            <h1 class="question">${question}</h1>
+            <input class="answer" type="text" id="answer${index}">
         </div>
-        `
-    }
-    questionBlock += `<br><br><div><button id="submit-answers">Submit Answers</button></div>`
-    return questionBlock;
+    `).join('') + `<br><br><div><button id="submit-answers">Submit Answers</button></div>`;
 }
 
 async function submitAnswers(id) {
-    const answerElements = document.getElementsByClassName("answer");
-    const answers = [];
+    const answerElements = Array.from(document.getElementsByClassName("answer"));
+    const answers = answerElements.map(el => el.value.trim());
 
-    for (let i = 0; i < answerElements.length; i++) {
-        if (answerElements[i].value == "") {
-            alert("Please fill in all answers");
-            return; // Early return if any answer is empty
-        }
-        answers.push(answerElements[i].value);
+    if (answers.some(answer => answer === "")) {
+        alert("Please fill in all answers");
+        return;
     }
 
     try {
@@ -49,24 +39,23 @@ async function submitAnswers(id) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ id: id, answers: answers })
+            body: JSON.stringify({ id, answers })
         });
 
         const data = await response.json();
-
-        if (data.success) {
-            return true;
-        } else {
+        if (!data.success) {
             alert("No successful response from server");
-            return false; 
         }
+        return data.success;
     } catch (error) {
         console.error('Error:', error);
         alert("An error occurred while submitting your answers.");
+        return false;
     }
 }
 
 
-export { loadQandA, submitAnswers};
+export { loadQuestionsAndAnswers
+, submitAnswers};
 
 

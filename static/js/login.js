@@ -8,7 +8,7 @@ function hashPassword(password) {
 }
 
 async function submitPassword(password) {
-    const hashedPassword = hashPassword(password); 
+    const hashedPassword = await hashPassword(password); 
     try {
         const response = await fetch('/login', {
             method: 'POST',
@@ -19,12 +19,7 @@ async function submitPassword(password) {
         });
 
         const data = await response.json();
-
-        if (data.success) {
-            return true; 
-        } else {
-            return false;
-        }
+        return data.success;
     } catch (error) {
         console.error('Error:', error);
         return false;
