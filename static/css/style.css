@@ -1,7 +1,9 @@
 body {
     font-family: Arial, sans-serif;
     margin: 0;
-    height: 100vh;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -10,8 +12,9 @@ body {
   
   .bubble-container {
     position: relative;
-    height: 50vh; /* Adjust as per your design */
-    width: 80vw; /* Adjust as per your design */
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
   }
   
   .bubble {
@@ -37,18 +40,18 @@ body {
   }
   
   #bubble1 {
-    top: 30%;
-    left: 20%; 
+    top: 45%;
+    left: 25%; 
   }
   
   #bubble2 {
-    top: -20%;
+    top: 20%;
     left: 42%; 
   }
   
   #bubble3 {
-    top: 45%;
-    right: 23%; 
+    top: 53%;
+    right: 32%; 
   }
   
   .settings-icon {

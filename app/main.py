@@ -8,13 +8,19 @@ import hashlib
 
 app = FastAPI()
 load_dotenv()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 PASSWORD = hashlib.md5((os.getenv("PASSWORD").encode()))
-print(PASSWORD)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+def load_questions():
+    with open("data/questions.txt", "r") as f:
+        lines = f.readlines()
+        lines = [line for line in lines if line != "\n"]
+        lines = [line.strip() for line in lines]
+    return lines
 
-templates = Jinja2Templates(directory="templates")
+QUESTIONS = load_questions()
 
 @app.get("/")
 async def get(request: Request):
