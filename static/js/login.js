@@ -7,23 +7,29 @@ function hashPassword(password) {
     return CryptoJS.MD5(password).toString();
 }
 
-function submitPassword() {
-    var password = document.getElementById("passwordInput").value;
-    var hashedPassword = hashPassword(password);
+async function submitPassword(password) {
+    const hashedPassword = hashPassword(password); 
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ password: hashedPassword }),
+        });
 
-    fetch('/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ password: hashedPassword }),
-    })
-    .then(response => response.json())
-    .then(data => {
+        const data = await response.json();
+
         if (data.success) {
-            document.getElementById("modal-content").innerHTML = "Logged in successfully. Loading data...";
+            return true; 
+        } else {
+            return false;
         }
-    });
+    } catch (error) {
+        console.error('Error:', error);
+        return false;
+    }
 }
+
 
 export { loginContent, submitPassword };

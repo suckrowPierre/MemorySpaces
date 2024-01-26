@@ -9,11 +9,16 @@ document.getElementById("bubble1").addEventListener("click", () => bubbleClicked
 document.getElementById("bubble2").addEventListener("click", () => bubbleClicked(2));
 document.getElementById("bubble3").addEventListener("click", () => bubbleClicked(3));
 
-function openSettings() {
+async function openSettings() {
     openModal(loginContent);
-    document.getElementById('passwordInput').addEventListener('keydown', function(event) {
+    document.getElementById('passwordInput').addEventListener('keydown', async function(event) {
         if (event.key === 'Enter') {
-            submitPassword();
+            const password_unhashed = document.getElementById("passwordInput").value;
+            const success = await submitPassword(password_unhashed);
+            if (success) {
+                document.getElementById("modal-content").innerHTML = "Logged in successfully. Loading data...";
+                // Optionally, perform further actions after successful login
+            }
         }
     });
 }
