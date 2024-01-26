@@ -7,6 +7,7 @@ import os
 import hashlib
 from pydantic import BaseModel
 from typing import List
+from . import audio_interface_helper as aih
 
 app = FastAPI()
 load_dotenv()
@@ -50,6 +51,14 @@ async def generate(payload: generatePayload):
     print(payload.answers)
     return JSONResponse(content={"success": True})
 
+@app.get("/audio_information")
+async def get_audio_information():
 
+    audio_devices = aih.get_out_devices()
+
+    info = {
+        "devices": aih.get_devices_names(audio_devices)
+    }
+    return JSONResponse(content=info)
 
 
