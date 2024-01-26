@@ -1,5 +1,6 @@
 import { loginContent, submitPassword } from './login.js';
 import { loadQuestionsAndAnswers, submitAnswers } from './q-a.js';
+import { loadSettings } from './settings.js';
 
 var modal = document.getElementById("modal");
 
@@ -19,6 +20,11 @@ async function openSettings() {
             const isSuccess = await submitPassword(password);
             if (isSuccess) {
                 document.getElementById("modal-content").textContent = "Logged in successfully. Loading data...";
+                const settings = await loadSettings();
+                console.log(settings);
+                if (settings) {
+                    document.getElementById("modal-content").innerHTML = JSON.stringify(settings);
+                }
             }
         }
     });
@@ -34,7 +40,7 @@ async function bubbleClicked(index) {
                 const isSuccess = await submitAnswers(index);
                 if (isSuccess) closeModal();
             };
-        }
+        } 
     } catch (error) {
         console.error('Error in loadQuestionsAndAnswers:', error);
     }

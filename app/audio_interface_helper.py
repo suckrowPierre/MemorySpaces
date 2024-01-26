@@ -68,4 +68,10 @@ class MultiOutsSineTest:
             process.terminate()
         self.processes = []
         self.outs = []
+
+    def __del__(self):
+        self.shutdown()
+        self.manager.shutdown()
+        print("MultiOutsSineTest deleted")
+
     
