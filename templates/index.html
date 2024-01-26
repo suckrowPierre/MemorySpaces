@@ -5,19 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Memory Spaces</title>
 <link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="/static/css/modal.css">
+<link rel="stylesheet" href="/static/css/bubbles.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+
 </head>
 <body>
 
 <div class="bubble-container">
-  <div class="bubble" id="bubble1" onclick="bubbleClicked(1)"><span class="bubble-text">1</span></div>
-  <div class="bubble" id="bubble2" onclick="bubbleClicked(2)"><span class="bubble-text">2</span></div>
-  <div class="bubble" id="bubble3" onclick="bubbleClicked(3)"><span class="bubble-text">3</span></div>
+  <div class="bubble" id="bubble1"><span class="bubble-text">1</span></div>
+  <div class="bubble" id="bubble2"><span class="bubble-text">2</span></div>
+  <div class="bubble" id="bubble3"><span class="bubble-text">3</span></div>
 </div>
 
 <div class="settings-icon">
-    <i class="fas fa-cog" onclick="openSettings()"></i>
+    <i class="fas fa-cog" id="settings"></i>
 </div>
-<script src="/static/js/script.js"></script>
+
+<div id="modal" class="modal">
+    <span class="close-button" id="close-modal">&times;</span>
+    <div class="modal-content" id="modal-content"></div>
+  </div>
+
+<script type="module" src='/static/js/modal.js'></script>
+</script>
 </body>
 </html>

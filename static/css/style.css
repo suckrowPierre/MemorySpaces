@@ -10,50 +10,6 @@ body {
     background-color: #f0f0f0;
   }
   
-  .bubble-container {
-    position: relative;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-  }
-  
-  .bubble {
-    background-color: #f4c2c2; 
-    width: 400px;
-    height: 300px;
-    border-radius: 200px / 150px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: absolute;
-    cursor: pointer;
-  }
-
-  .bubble:hover {
-    background-color: #ffcbcb; 
-  }
-  
-  
-  .bubble-text {
-    font-size: 3rem;
-    color: white;
-  }
-  
-  #bubble1 {
-    top: 45%;
-    left: 25%; 
-  }
-  
-  #bubble2 {
-    top: 20%;
-    left: 42%; 
-  }
-  
-  #bubble3 {
-    top: 53%;
-    right: 32%; 
-  }
-  
   .settings-icon {
     position: fixed;
     bottom: 20px;

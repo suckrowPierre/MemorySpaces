@@ -1,5 +1,5 @@
-from fastapi import FastAPI, WebSocket, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, WebSocket, Request, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
@@ -25,5 +25,13 @@ QUESTIONS = load_questions()
 @app.get("/")
 async def get(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/login")
+async def login(password: dict):
+    received_password_hash = password.get("password")
+    if received_password_hash == PASSWORD.hexdigest():
+        return JSONResponse(content={"success": True})
+    else:
+        raise HTTPException(status_code=401, detail="Incorrect password")
 
 
