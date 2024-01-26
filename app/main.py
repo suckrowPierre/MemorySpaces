@@ -5,6 +5,8 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 import os
 import hashlib
+from pydantic import BaseModel
+from typing import List
 
 app = FastAPI()
 load_dotenv()
@@ -33,5 +35,21 @@ async def login(password: dict):
         return JSONResponse(content={"success": True})
     else:
         raise HTTPException(status_code=401, detail="Incorrect password")
+    
+@app.get("/questions")
+async def get_questions():
+    return JSONResponse(content={"questions": QUESTIONS})   
+
+class generatePayload(BaseModel):
+    id: int
+    answers: List[str]
+
+@app.post("/generate")
+async def generate(payload: generatePayload):
+    print(id, payload.id)
+    print(payload.answers)
+    return JSONResponse(content={"success": True})
+
+
 
 

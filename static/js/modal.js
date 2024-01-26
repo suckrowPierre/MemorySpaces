@@ -1,4 +1,5 @@
 import { loginContent, submitPassword } from './login.js';
+import { loadQandA, submitAnswers } from './q-a.js';
 
 var modal = document.getElementById("modal");
 
@@ -18,17 +19,29 @@ function openSettings() {
 }
 
 function bubbleClicked(index) {
-    openModal('Bubble ' + index + ' clicked');
+    openModal("loading...");
+    loadQandA().then(() => {
+        let submitButton = document.getElementById("submit-answers");
+        if (submitButton) {
+            submitButton.addEventListener("click", async () => {
+                const success = await submitAnswers(index);
+                if (success) {
+                    closeModal();
+                }
+            });
+        }
+    }).catch(error => {
+        console.error('Error in loadQandA:', error);
+    });
 }
 
 function openModal(content) {
     modal.style.display = "block";
-    // append content to modal
-    document.getElementById("modal-content").innerHTML = content; // Use the 'content' variable
+    document.getElementById("modal-content").innerHTML = content;
 }
 
 function closeModal() {
     modal.style.display = "none";
 }
 
-
+export { openModal, closeModal };
