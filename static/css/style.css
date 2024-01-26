@@ -1,0 +1,65 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+  }
+  
+  .bubble-container {
+    position: relative;
+    height: 50vh; /* Adjust as per your design */
+    width: 80vw; /* Adjust as per your design */
+  }
+  
+  .bubble {
+    background-color: #f4c2c2; 
+    width: 400px;
+    height: 300px;
+    border-radius: 200px / 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    cursor: pointer;
+  }
+
+  .bubble:hover {
+    background-color: #ffcbcb; 
+  }
+  
+  
+  .bubble-text {
+    font-size: 3rem;
+    color: white;
+  }
+  
+  #bubble1 {
+    top: 30%;
+    left: 20%; 
+  }
+  
+  #bubble2 {
+    top: -20%;
+    left: 42%; 
+  }
+  
+  #bubble3 {
+    top: 45%;
+    right: 23%; 
+  }
+  
+  .settings-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px; 
+    font-size: 2em; 
+    cursor: pointer;
+    color: #e0e0e0;
+  }
+
+  .settings-icon:hover {
+    color: #c2c2c2;
+  }
