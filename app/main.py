@@ -75,7 +75,11 @@ settings = {
         "sine1_volume": 0.1,
         "sine2_volume": 0.1,
         "sine3_volume": 0.1,
-    }
+    },
+    "audio_model_settings": {},
+    "llm_settings": {},
+    "tracker_settings": {},
+    "headphone_sensors_settings": {}
 }
 
 @app.get("/settings")
