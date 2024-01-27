@@ -1,3 +1,11 @@
 .settings-input {
         width: 3em;
 }
+
+.long-input-text {
+        width: 80%;
+}
+
+#negative-prompt {
+    width: 70%;
+}

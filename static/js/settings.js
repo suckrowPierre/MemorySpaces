@@ -1,102 +1,99 @@
-function getDropdownFromArray(array, id){
-    var dropdown = `<select class="dorpdown" id="${id}">`;
-    for (var i = 0; i < array.length; i++){
-        dropdown += `<option value="${array[i]}">${array[i]}</option>`;
+async function loadSettings() {
+    const response = await fetch('/settings', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+    const data = await response.json();
+    return data.settings || {};
+}
+
+function getSettingHTML(settings) {
+    return `<div class="settings">
+        ${createSettingsSection(settings, "audio_settings", createAudioSettingsContent)}
+        ${createSettingsSection(settings, "audio_model_settings", createAudioModelSettingsContent)}
+        ${createSettingsSection(settings, "llm_settings", createLLMSettingsContent)}
+        ${createSettingsSection(settings, "tracker_settings", () => '')}
+        ${createSettingsSection(settings, "headphone_sensors_settings", () => '')}
+    </div>`;
+}
+
+function createAudioSettingsContent(audioSettings) {
+    let content = '';
+    if (audioSettings.device_options) {
+        content += `Audio Device: ${createDropdown(audioSettings.device_options, audioSettings.device, "devices-dropdown")}<br>`;
     }
-    dropdown += "</select>";
-    return dropdown;
+    for (let i = 1; i <= 3; i++) {
+        if (audioSettings[`channel${i}`]) {
+            content += `Channel ${i}: ${createInputField(`channel${i}`, "number", audioSettings[`channel${i}`])}`;
+        }
+        if (audioSettings[`sine${i}_freq`] && audioSettings[`sine${i}_volume`]) {
+            content += `Test Sine Freq: ${createInputField(`sine${i}_freq`, "number", audioSettings[`sine${i}_freq`])}`;
+            content += `Volume: ${createInputField(`sine${i}_volume`, "number", audioSettings[`sine${i}_volume`])}`;
+            content += `${createButton(`test-sine${i}`, "Test")}${createButton(`stop-sine${i}`, "Stop")}<br>`;
+        }
+    }
+    content += `${createButton("kill-all-test-sine", "Kill Test Sines")}<br>`;
+    return content;
 }
 
-function getInputField(id, type, placeholder){
-    return `<input class="settings-input" type="${type}" id="${id}" placeholder="${placeholder}">`;
+function createAudioModelSettingsContent(audioModelSettings) {
+    let content = '';
+    if (audioModelSettings.model_options) {
+        content += `Model: ${createDropdown(audioModelSettings.model_options, audioModelSettings.model, "model-dropdown")}<br>`;
+    }
+    if (audioModelSettings.device_options) {
+        content += `Device: ${createDropdown(audioModelSettings.device_options, audioModelSettings.device, "device-dropdown")}<br>`;
+    }
+    if (audioModelSettings.audio_length_in_s){
+        content += `Audio Length: ${createInputField("audio-length", "number", audioModelSettings.audio_length_in_s)}<br>`;
+    }
+    if (audioModelSettings.guidance_scale){
+        //validation if whole int 
+        content += `Guidance Scale: ${createInputField("guidance-scale", "number", audioModelSettings.guidance_scale)}<br>`;
+    }
+    if (audioModelSettings.num_inference_steps){
+        //validation if whole int 
+        content += `Num Inference Steps: ${createInputField("num-inference-steps", "number", audioModelSettings.num_inference_steps)}<br>`;
+    }
+    if (audioModelSettings.negative_prompt){
+        content += `Negative Prompt: ${createInputField("negative-prompt", "text", audioModelSettings.negative_prompt, "long-input-text")}<br>`;
+    }
+    return content;
 }
 
-function getButton(id, text){
+function createLLMSettingsContent(llmSettings) {
+    let content = '';
+    if (llmSettings.number_soundevents){
+        //validation if whole int 
+        content += `Number Soundevents: ${createInputField("number-soundevents", "number", llmSettings.number_soundevents)}<br>`;
+    }
+    if (llmSettings. number_prompts){
+        //validation if whole int 
+        content += `Number Prompts: ${createInputField("number-prompts", "number", llmSettings.number_prompts)}<br>`;
+    }
+    if (llmSettings.role_system){
+        content += `Role System: ${createInputField("role-system", "text", llmSettings.role_system, "long-input-text")}<br>`;
+    }
+    if (llmSettings.role_user){
+        content += `Role User: ${createInputField("role-user", "text", llmSettings.role_user, "long-input-text")}<br>`;
+    }
+    return content;
+}
+
+function createDropdown(array, defaultValue, id ) {
+    return array.reduce((dropdown, item) => {
+        const isSelected = item === defaultValue ? ' selected' : '';
+        return `${dropdown}<option value="${item}"${isSelected}>${item}</option>`;
+    }, `<select class="dropdown" id="${id}">`) + "</select>";
+}
+
+function createInputField(id, type, value, html_class="settings-input") {
+    return `<input class="${html_class}" type="${type}" id="${id}" value="${value}">`;
+}
+
+function createButton(id, text) {
     return `<button class="settings-button" id="${id}">${text}</button>`;
 }
 
-async function loadSettings()
-{
-    const response = await fetch('/settings', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
-    const data = await response.json();
-    if (data.settings) {
-        return data.settings;
-    }
-}
-
-function getSettingHTML(settings){
-    var html = "<div class=settings>";
-    if (settings.audio_settings) {
-        html += "<div class=audio-settings>";
-        html += "<h2>Audio Settings</h2>";
-        if (settings.audio_settings.devices) {
-            html += `Audio Device: ${getDropdownFromArray(settings.audio_settings.devices, "devices-dropdown")}`;
-        }
-        html += `<br>`;
-        if (settings.audio_settings.channel1){
-            html += `Channel 1: ${getInputField("channel1", "number", settings.audio_settings.channel1)}`;
-        }
-        if (settings.audio_settings.sine1_freq && settings.audio_settings.sine1_volume){
-            html += `Test Sine Freq: ${getInputField("sine1_freq", "number", settings.audio_settings.sine1_freq)}`;
-            html += `Volume: ${getInputField("sine1_freq", "number", settings.audio_settings.sine1_volume)}`;
-            html += `${getButton("test-sine1", "Test")}`;
-            html += `${getButton("test-sine1", "Stop")}`;
-        }
-        html += `<br>`;
-        if (settings.audio_settings.channel2){
-            html += `Channel 2: ${getInputField("channel2", "number", settings.audio_settings.channel2)}`;
-        }
-        if (settings.audio_settings.sine2_freq && settings.audio_settings.sine2_volume){
-            html += `Test Sine Freq: ${getInputField("sine2_freq", "number", settings.audio_settings.sine2_freq)}`;
-            html += `Volume: ${getInputField("sine2_freq", "number", settings.audio_settings.sine2_volume)}`;
-            html += `${getButton("test-sine2", "Test")}`;
-            html += `${getButton("test-sine2", "Stop")}`;
-        }
-        html += `<br>`;
-        if (settings.audio_settings.channel3){
-            html += `Channel 3: ${getInputField("channel3", "number", settings.audio_settings.channel3)}`;
-        }
-        if (settings.audio_settings.sine3_freq && settings.audio_settings.sine3_volume){
-            html += `Test Sine Freq: ${getInputField("sine3_freq", "number", settings.audio_settings.sine3_freq)}`;
-            html += `Volume: ${getInputField("sine3_freq", "number", settings.audio_settings.sine3_volume)}`;
-            html += `${getButton("test-sine3", "Test")}`;
-            html += `${getButton("test-sine3", "Stop")}`;
-        }
-        html += `<br>`;
-        html += `${getButton("kill-all-test-sine", "Kill Test Sines")}`;
-        html += "</div>";
-        html += `<br>`;
-    }
-    if (settings.audio_model_settings) {
-        html += "<div class=audio-model-settings>";
-        html += "<h2>Audio Model Settings</h2>";
-        html += "</div>";
-        html += `<br>`;
-    }
-    if (settings.llm_model_settings) {
-        html += "<div class=llm-model-settings>";
-        html += "<h2>LLM Settings</h2>";
-        html += "</div>";
-        html += `<br>`;
-    }
-    if (settings.tracker_settings) {
-        html += "<div class=tracker-settings>";
-        html += "<h2>Tracker Settings</h2>";
-        html += "</div>";
-        html += `<br>`;
-    }
-    if (settings.headphone_sensors_settings) {
-        html += "<div class=headphone-sensors-settings>";
-        html += "<h2>Headphone Sensor Settings</h2>";
-        html += "</div>";
-    }
-    html += "</div>";
-    return html;
+function createSettingsSection(settings, sectionName, contentGenerator) {
+    return settings[sectionName] ? `<div class="${sectionName}"><h2>${sectionName.replace(/_/g, ' ')}</h2>${contentGenerator(settings[sectionName])}</div><br>` : '';
 }
 
 export { loadSettings, getSettingHTML};

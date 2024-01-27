@@ -1,7 +1,9 @@
-import audio_interface_helper as aih
+import settings
 
 def main():
-    print(aih.get_devices_names(aih.get_out_devices()))
+    settings_cache = settings.SettingsCache()
+    print(settings_cache.get_settings_replaced_drop_down())
+    
 
 
 if __name__ == '__main__':

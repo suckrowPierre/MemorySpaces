@@ -8,6 +8,7 @@ import hashlib
 from pydantic import BaseModel
 from typing import List
 from . import audio_interface_helper as aih
+from . import settings
 
 app = FastAPI()
 load_dotenv()
@@ -15,6 +16,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 PASSWORD = hashlib.md5((os.getenv("PASSWORD").encode()))
+settings_cache = settings.SettingsCache()
+
+
 
 testing_classes = {
     "MultiOutsSineTest": None
@@ -56,40 +60,19 @@ async def generate(payload: generatePayload):
     print(payload.answers)
     return JSONResponse(content={"success": True})
 
-# use this if on nvidia jetson to filter out unwanted devices
-def filter_out_NVIDIA_devices(devices):
-    # filter out every entry that starts with NVIDIA
-    prefixes = ["NVIDIA", "hdmi", "pulse", "default"]
-    return [device for device in devices if not any(device.startswith(prefix) for prefix in prefixes)]
-    
-
-settings = {
-    "audio_settings": {
-        "devices": filter_out_NVIDIA_devices(aih.get_devices_names(aih.get_out_devices())),
-        "channel1": 1,
-        "channel2": 2,
-        "channel3": 3,
-        "sine1_freq": 440,
-        "sine2_freq": 220,
-        "sine3_freq": 110,
-        "sine1_volume": 0.1,
-        "sine2_volume": 0.1,
-        "sine3_volume": 0.1,
-    },
-    "audio_model_settings": {},
-    "llm_settings": {},
-    "tracker_settings": {},
-    "headphone_sensors_settings": {}
-}
-
 @app.get("/settings")
 async def get_settings():
-    settings_json = { "settings": settings }
+    settings_json = { "settings": settings_cache.get_settings_with_drop_down() }
     return JSONResponse(content=settings_json)
+
+@app.post("/save_settings")
+async def save_settings(settings: dict):
+    settings_cache.save_setting(settings)
+    return JSONResponse(content={"success": True})
 
 class testSinePayload(BaseModel):
     device_name: str
-    chanel: int
+    channel: int
     freq: float
     volume_multiply: float
 
@@ -105,20 +88,20 @@ async def test_sine_out(payload: testSinePayload):
         testing_classes["MultiOutsSineTest"].shutdown()
         testing_classes["MultiOutsSineTest"] = aih.MultiOutsSineTest(device_index)
     try: 
-        testing_classes["MultiOutsSineTest"].add_sine(payload.chanel, payload.freq, payload.volume_multiply)
+        testing_classes["MultiOutsSineTest"].add_sine(payload.channel, payload.freq, payload.volume_multiply)
         return JSONResponse(content={"success": True})
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     
 class stopSinePayload(BaseModel):
-    chanel: int
+    channel: int
     
 @app.get("/stop_sine_out")
 async def stop_sine_out(payload: stopSinePayload):
     if testing_classes["MultiOutsSineTest"] is None:
         raise HTTPException(status_code=400, detail="No sine test running")
     try:
-        testing_classes["MultiOutsSineTest"].remove_sine(payload.chanel)
+        testing_classes["MultiOutsSineTest"].remove_sine(payload.channel)
         return JSONResponse(content={"success": True})
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
