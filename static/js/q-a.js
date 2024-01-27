@@ -1,3 +1,5 @@
+//TODO: implement caching of questions 
+
 async function loadQuestionsAndAnswers() {
     try {
         const response = await fetch('/questions', {

@@ -53,7 +53,7 @@ function createAudioModelSettingsContent(audioModelSettings) {
         content += `Num Inference Steps: ${createInputField("num-inference-steps", "number", audioModelSettings.num_inference_steps)}<br>`;
     }
     if (audioModelSettings.negative_prompt){
-        content += `Negative Prompt: ${createInputField("negative-prompt", "text", audioModelSettings.negative_prompt, "long-input-text")}<br>`;
+        content += `Negative Prompt: ${createInputField("negative-prompt", "text", audioModelSettings.negative_prompt)}<br>`;
     }
     return content;
 }
