@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, Request, HTTPException
+from fastapi import FastAPI, WebSocket, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -56,16 +56,25 @@ class generatePayload(BaseModel):
 
 @app.post("/generate")
 async def generate(payload: generatePayload):
-    print(id, payload.id)
-    print(payload.answers)
+    #TODO:
     return JSONResponse(content={"success": True})
 
+def get_settings_json(load_from_disk: bool = False):
+    if load_from_disk:
+        settings_cache.load_from_disk()
+    return {"settings": settings_cache.get_settings_with_drop_down()}
+
 @app.get("/settings")
-async def get_settings():
-    settings_json = { "settings": settings_cache.get_settings_with_drop_down() }
+async def settings():
+    settings_json = get_settings_json()
     return JSONResponse(content=settings_json)
 
-@app.post("/save_settings")
+@app.get("/settings/disk")
+async def settings_disk():
+    settings_json = get_settings_json(load_from_disk=True)
+    return JSONResponse(content=settings_json)
+
+@app.post("/settings")
 async def save_settings(settings: dict):
     settings_cache.save_setting(settings)
     return JSONResponse(content={"success": True})

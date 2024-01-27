@@ -1,6 +1,6 @@
 import { loginContent, submitPassword } from './login.js';
 import { loadQuestionsAndAnswers, submitAnswers } from './q-a.js';
-import { getSettingHTML, loadSettings } from './settings.js';
+import { getSettingHTML, loadSettings, initializeSettingsListeners, saveSettings } from './settings.js';
 
 var modal = document.getElementById("modal");
 
@@ -9,7 +9,22 @@ document.addEventListener("click", (event) => {
     if (id === "settings") openSettings();
     else if (id === "close-modal") closeModal();
     else if (id.startsWith("bubble")) bubbleClicked(parseInt(id[id.length - 1]));
+    else if (id === "load-settings-from-disk") loadAndUpdateSettings(true);
+    else if (id === "save-settings") saveSettings();
+    else if (id === "start-programm") {
+        closeModal();
+        //TODO
+    }
 });
+
+async function loadAndUpdateSettings(fromDisk=false) {
+    const settings = await loadSettings(fromDisk);
+    if (settings) {
+        console.log("settings", settings);
+        document.getElementById("modal-content").innerHTML = getSettingHTML(settings);
+        initializeSettingsListeners();
+    }
+}
 
 async function openSettings() {
     openModal(loginContent);
@@ -20,11 +35,7 @@ async function openSettings() {
             const isSuccess = await submitPassword(password);
             if (isSuccess) {
                 document.getElementById("modal-content").textContent = "Logged in successfully. Loading data...";
-                const settings = await loadSettings();
-                console.log(settings);
-                if (settings) {
-                    document.getElementById("modal-content").innerHTML = getSettingHTML(settings);
-                }
+                loadAndUpdateSettings();
             }
         }
     });

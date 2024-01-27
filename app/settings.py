@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 import os
 from . import audio_interface_helper as aih
+from copy import deepcopy
+
 
 
 DATA_PATH = Path("./data/")
@@ -31,18 +33,19 @@ class SettingsCache:
 
     def __init__(self):
         self.settings = {
-            "audio_settings": load_settings("audio_settings"),
-            "audio_model_settings": load_settings("audio_model_settings"),
-            "llm_settings": load_settings("llm_settings"),
-            "tracker_settings": load_settings("tracker_settings"),
-            "headphone_sensors_settings": load_settings("headphone_sensors_settings")
+            "audio_settings": {},
+            "audio_model_settings": {},
+            "llm_settings": {},
+            "tracker_settings": {},
+            "headphone_sensors_settings": {}
         }
+        self.load_from_disk()
 
     def save_setting(self, changed_setting):
         for category, new_settings in changed_setting.items():
             if category in self.settings:
-                self.settings[category] = new_settings
-                save_settings(category, new_settings)
+                self.settings[category].update(new_settings)
+                save_settings(category, self.settings[category])
 
     def get_settings(self, category="all"):
         if category == "all":
@@ -50,10 +53,21 @@ class SettingsCache:
         return self.settings.get(category, None)
     
     def get_settings_with_drop_down(self):
-        self.settings["audio_settings"]["device_options"] = filter_out_NVIDIA_devices(aih.get_devices_names(aih.get_out_devices()))
+        settings_copy = deepcopy(self.settings)
+        settings_copy["audio_settings"]["device_options"] = filter_out_NVIDIA_devices(aih.get_devices_names(aih.get_out_devices()))
         models_path = DATA_PATH / "models"
-        self.settings["audio_model_settings"]["model_options"] = [folder.name for folder in models_path.iterdir() if folder.is_dir()]
-        self.settings["audio_model_settings"]["device_options"] = ["mps", "cuda", "cpu"]
+        settings_copy["audio_model_settings"]["model_options"] = [folder.name for folder in models_path.iterdir() if folder.is_dir()]
+        settings_copy["audio_model_settings"]["device_options"] = ["mps", "cuda", "cpu"]
+        return settings_copy
+    
+    def load_from_disk(self):
+        self.settings = {
+            "audio_settings": load_settings("audio_settings"),
+            "audio_model_settings": load_settings("audio_model_settings"),
+            "llm_settings": load_settings("llm_settings"),
+            "tracker_settings": load_settings("tracker_settings"),
+            "headphone_sensors_settings": load_settings("headphone_sensors_settings")
+        }
         return self.settings
     
 
