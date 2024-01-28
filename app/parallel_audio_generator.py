@@ -10,41 +10,6 @@ class GenerationStatus(Enum):
     PLAYING = "playing audio"
 """
 
-def initalize_chache(manager, number_of_memory_spaces):
-    cache = manager.dict()
-    for i in range(number_of_memory_spaces):
-        cache[i] = manager.dict()
-    return cache
-
-def clear_memory_space(manager, cache, memory_space):
-    cache[memory_space] = manager.dict()
-
-def append_to_memory_space(manager, cache, memory_space, sound_event, data):
-    cache[memory_space][sound_event] = manager.dict()
-    cache[memory_space][sound_event].append(data)
-
-def create_shared_audio_array(audio_array):
-    audio_mp_array = mp.Array('f', audio_array.shape[0])
-    audio_mp_array[:] = audio_array[:]
-    return audio_mp_array
-
-def get_audio_from_cache(cache, memory_space, sound_event):
-    return cache[memory_space][sound_event]
-
-def print_cache(cache):
-    for memory_space in cache:
-        print("memory_space: " + str(memory_space))
-        if len(cache[memory_space]) == 0:
-            print("--empty")
-        else:
-            for sound_event in cache[memory_space]:
-                print("--sound_event: " + str(sound_event))
-                if len(cache[memory_space][sound_event]) == 0:
-                    print("----empty")
-                else:
-                    for audio in cache[memory_space][sound_event]:
-                        print("----audio: " + str(audio))
-
 class ParallelAudioGenerator:
 
     def __init__(self, audio_settings, audio_model_settings, llm_settings):
@@ -58,15 +23,65 @@ class ParallelAudioGenerator:
         self.nchnls = 3
         self.channels = [audio_settings["channel1"], audio_settings["channel2"], audio_settings["channel3"]]
 
-        # pop model path from audio_model_settings
         self.model_path = audio_model_settings.pop("model")
         self.device = audio_model_settings.pop("device")
         self.parameters = audio_model_settings
 
-        self.number_soundevents = llm_settings["number_soundevents"]
-        self.number_prompts = llm_settings["number_prompts"]
+        self.number_soundevents = llm_settings.get("number_soundevents", 0)
+        self.number_prompts = llm_settings.get("number_prompts", 0)
 
-        self.cache = initalize_chache(self.manager, self.nchnls)
+        # maybe a validator for the settings would be nice
+
+        self.cache = self._initialize_cache(self.nchnls)
+
+    def _initialize_cache(self, number_of_memory_spaces):
+        # Initialize the cache with specified number of memory spaces.
+        cache = self.manager.dict()
+        for i in range(number_of_memory_spaces):
+            cache[i] = self.manager.dict()
+        return cache
+    
+    def clear_memory_space(self, memory_space):
+        #Clear the specified memory space in the cache.
+        self.cache[memory_space] = self.manager.dict()
+    
+    def append_to_memory_space(self, memory_space, sound_event, data):
+        #Append data to a specified memory space and sound event in the cache
+        if sound_event not in self.cache[memory_space]:
+            self.cache[memory_space][sound_event] = self.manager.list()
+        self.cache[memory_space][sound_event].append(data.tolist())   # Might be point of failure
+    
+    def create_shared_audio_array(self, audio_array):
+        #Create a shared array for audio data.
+        audio_mp_array = mp.Array('f', audio_array.shape[0])
+        audio_mp_array[:] = audio_array[:]
+        return audio_mp_array
+    
+    def get_audio_from_cache(self, memory_space, sound_event, index):
+        #Retrieve audio data from cache
+        audios = self.cache[memory_space].get(sound_event, [])
+        return audios[index] if index < len(audios) else None
+    
+    def get_len_sound_event(self, memory_space, sound_event):
+        #Get the length of a sound event in a memory space.
+        return len(self.cache[memory_space].get(sound_event, []))
+    
+    def print_cache(self):
+        #Print the contents of the cache."""
+        for memory_space, events in self.cache.items():
+            print(f"memory_space: {memory_space}")
+            if not events:
+                print("--empty")
+                continue
+            for sound_event, audios in events.items():
+                print(f"--sound_event: {sound_event}")
+                if not audios:
+                    print("----empty")
+                    continue
+                for audio in audios:
+                    print(f"----audio: {audio}")
+
+
     
     def print_settings(self):
         print("interface: " + self.interface)

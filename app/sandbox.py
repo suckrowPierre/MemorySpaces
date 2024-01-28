@@ -1,5 +1,6 @@
-#import audioldm2
+import audioldm2
 import parallel_audio_generator
+import numpy as np
 
 """
 def main():
@@ -49,11 +50,19 @@ def main():
     generator = parallel_audio_generator.ParallelAudioGenerator(audio_settings, audio_model_settings, llm_settings)
     cache = generator.cache
     manager = generator.manager
-    parallel_audio_generator.print_cache(cache)
 
-    parallel_audio_generator.append_to_memory_space(manager, cache, 0, "sound_event1", [0,1,2,3])
-    parallel_audio_generator.print_cache(cache)
+
+    model_path = "../data/models/audioldm2"
+    device = "cuda"
+    pipe = audioldm2.setup_pipeline(model_path, device)
+    parameters = audioldm2.generate_params("hello world")
+    audio = audioldm2.text2audio(pipe, parameters)
+
+    generator.append_to_memory_space(0, "test", audio)
+    generator.print_cache()
     
+
+
 
 
 if __name__ == '__main__':
