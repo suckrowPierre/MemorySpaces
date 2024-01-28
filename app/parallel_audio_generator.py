@@ -1,7 +1,9 @@
 import time
 import multiprocessing as mp
+mp.set_start_method('spawn', force=True)
 import numpy as np
 import enum as Enum
+import audioldm2
 
 """
 class GenerationStatus(Enum):
@@ -10,9 +12,20 @@ class GenerationStatus(Enum):
     PLAYING = "playing audio"
 """
 
+def generator(c, model_path, device, parameters, cache):
+    c.send("inialize audioldm2 pipe")
+    pipe = audioldm2.setup_pipeline(model_path, device)
+    c.send("audioldm2 pipe initialized")
+    while True:
+        c.send("waiting for prompt")
+        prompt = c.recv()
+        c.send("prompt received")
+        audio = pipe(prompt, **parameters)
+        c.send("audio generated")
+
 class ParallelAudioGenerator:
 
-    def __init__(self, audio_settings, audio_model_settings, llm_settings):
+    def __init__(self, model_path, audio_settings, audio_model_settings, llm_settings):
         self.manager = mp.Manager()
 
         self.generator_process = None
@@ -23,7 +36,8 @@ class ParallelAudioGenerator:
         self.nchnls = 3
         self.channels = [audio_settings["channel1"], audio_settings["channel2"], audio_settings["channel3"]]
 
-        self.model_path = audio_model_settings.pop("model")
+        model = audio_model_settings.pop("model")
+        self.model_path = str(model_path / model)
         self.device = audio_model_settings.pop("device")
         self.parameters = audio_model_settings
 
@@ -32,8 +46,13 @@ class ParallelAudioGenerator:
 
         # maybe a validator for the settings would be nice
 
-        self.cache = self._initialize_cache(self.nchnls)
+        self.generator_parent_channel, self.generator_child_channel = mp.Pipe()
 
+        self.cache = self._initialize_cache(self.nchnls)
+    
+    def get_generator_channel(self):
+        return self.generator_parent_channel
+    
     def _initialize_cache(self, number_of_memory_spaces):
         # Initialize the cache with specified number of memory spaces.
         cache = self.manager.dict()
@@ -80,7 +99,14 @@ class ParallelAudioGenerator:
                     continue
                 for audio in audios:
                     print(f"----audio: {audio}")
+            
+    def _init_generation_process(self):
+        self.generator_process = mp.Process(target=generator, args=(self.generator_child_channel, self.model_path, self.device, self.parameters, self.cache))
+        self.generator_process.start()
 
+
+
+    
 
     
     def print_settings(self):

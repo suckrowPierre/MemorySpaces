@@ -1,19 +1,6 @@
-import audioldm2
 import parallel_audio_generator
-import numpy as np
+from pathlib import Path
 
-"""
-def main():
-    model_path = "../data/models/audioldm2"
-    device = "cuda"
-    pipe = audioldm2.setup_pipeline(model_path, device)
-    parameters = audioldm2.generate_params("hello world")
-    audio = audioldm2.text2audio(pipe, parameters)
-
-    if(audio is not None):
-        print("audio is not None")
-
-"""
 audio_model_settings = {
     "model": "audioldm2",
     "device": "cuda",
@@ -46,23 +33,15 @@ llm_settings = {
 
 def main():
 
-
-    generator = parallel_audio_generator.ParallelAudioGenerator(audio_settings, audio_model_settings, llm_settings)
-    cache = generator.cache
-    manager = generator.manager
-
-
-    model_path = "../data/models/audioldm2"
-    device = "cuda"
-    pipe = audioldm2.setup_pipeline(model_path, device)
-    parameters = audioldm2.generate_params("hello world")
-    audio = audioldm2.text2audio(pipe, parameters)
-
-    generator.append_to_memory_space(0, "test", audio)
-    generator.print_cache()
-    
-
-
+    path = Path("../data/models")
+    generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
+    generator_channel = generator.get_generator_channel()
+    generator._init_generation_process()
+    while True:
+        message = generator_channel.recv()
+        print(message)
+        if(message == "waiting for prompt"):
+            generator_channel.send("hello world")
 
 
 if __name__ == '__main__':
