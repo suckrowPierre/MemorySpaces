@@ -57,7 +57,7 @@ def main():
     array4 = np.array([16,17,18,19,20])
 
     generator.append_to_memory_space(0, "sound_event1", array)
-    generator.append_to_memory_space(0, "sound_event2", array2)
+    generator.append_to_memory_space(3, "sound_event2", array2)
     
     print("should have thrown error")
 
