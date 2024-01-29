@@ -14,6 +14,16 @@ class GenerationStatus(Enum):
     PROMPT_RECEIVED = "prompt received"
     GENERATING = "generating audio"
     PLAYING = "playing audio"
+    WRITING_AUDIO_TO_CACHE = "writing audio to cache"
+    WRITTEN_TO_CACHE = "writing audio to cache"
+
+def get_prompt_communciator(prompt, memory_space, sound_event):
+    communicator = {
+        "prompt": prompt,
+        "memory_space": memory_space,
+        "sound_event": sound_event
+    }
+    return communicator
 
 def get_communicator(status, **kwargs):
     communicator = {
@@ -31,17 +41,23 @@ def communicator_to_string(communicator):
         string += f"{key}: {value} "
     return string
 
-def generator(c, model_path, device, parameters, cache):
+def generator(c, model_path, device, parameters, audio_cache):
     c.send(get_communicator(GenerationStatus.INIZIALIZING))
     pipe = audioldm2.setup_pipeline(model_path, device)
     c.send(get_communicator(GenerationStatus.INIZIALIZED))
     while True:
         c.send(get_communicator(GenerationStatus.WAITING_FOR_PROMPT))
-        prompt = c.recv()
-        c.send(get_communicator(GenerationStatus.PROMPT_RECEIVED, prompt=prompt))
-        c.send(get_communicator(GenerationStatus.GENERATING, prompt=prompt))
-        audio = pipe(prompt, **parameters)
-
+        prompt_communicator = c.recv()
+        print(f"Received data: {prompt_communicator}, Type: {type(prompt_communicator)}")
+        prompt, memory_space, sound_event = prompt_communicator["prompt"], prompt_communicator["memory_space"], prompt_communicator["sound_event"]
+        c.send(get_communicator(GenerationStatus.PROMPT_RECEIVED, memory_space=memory_space, sound_event=sound_event, prompt=prompt))
+        c.send(get_communicator(GenerationStatus.GENERATING, memory_space=memory_space, sound_event=sound_event, prompt=prompt))
+        model_parameters = {"prompt": prompt, **parameters}
+        audio = audioldm2.text2audio(pipe, model_parameters)
+        c.send(get_communicator(GenerationStatus.WRITING_AUDIO_TO_CACHE, memory_space=memory_space, sound_event=sound_event, prompt=prompt))
+        cache.append_to_memory_space(audio_cache, memory_space, sound_event, audio)
+        c.send(get_communicator(GenerationStatus.WRITTEN_TO_CACHE, memory_space=memory_space, sound_event=sound_event, prompt=prompt))
+        print(cache.cache_to_string(audio_cache))
     
 class ParallelAudioGenerator:
 
@@ -69,28 +85,28 @@ class ParallelAudioGenerator:
 
         self.generator_parent_channel, self.generator_child_channel = mp.Pipe()
 
-        self.cache = cache._initialize_cache(self.manager, self.nchnls, self.number_soundevents, self.number_prompts)
+        self.audio_cache = cache._initialize_cache(self.manager, self.nchnls, self.number_soundevents, self.number_prompts)
     
     def get_generator_channel(self):
         return self.generator_parent_channel
     
     def clear_memory_space(self, memory_space):
-        cache.clear_memory_space(self.cache, self.manager, memory_space)
+        cache.clear_memory_space(self.audio_cache, memory_space)
     
     def append_to_memory_space(self, memory_space, sound_event, audio_data):
-        cache.append_to_memory_space(self.cache, self.manager, memory_space, sound_event, audio_data)
+        cache.append_to_memory_space(self.audio_cache, memory_space, sound_event, audio_data)
     
     def get_audio_from_cache(self, memory_space, sound_event, index):
-        return cache.get_audio_from_cache(self.cache, memory_space, sound_event, index)
+        return cache.get_audio_from_cache(self.audio_cache, memory_space, sound_event, index)
     
     def get_len_sound_event(self, memory_space, sound_event):
-        return cache.get_len_sound_event(self.cache, memory_space, sound_event)
+        return cache.get_len_sound_event(self.audio_cache, memory_space, sound_event)
     
     def print_cache(self):
-        print(cache.cache_to_string(self.cache))
+        print(cache.cache_to_string(self.audio_cache))
             
     def _init_generation_process(self):
-        self.generator_process = mp.Process(target=generator, args=(self.generator_child_channel, self.model_path, self.device, self.parameters, self.cache))
+        self.generator_process = mp.Process(target=generator, args=(self.generator_child_channel, self.model_path, self.device, self.parameters, self.audio_cache))
         self.generator_process.start()
     
     def print_settings(self):

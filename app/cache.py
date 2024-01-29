@@ -1,3 +1,4 @@
+import multiprocessing as mp
 from enum import Enum
 
 class CacheStructure(Enum):
@@ -65,22 +66,21 @@ def _initialize_cache(manager, number_of_memory_spaces, number_soundevents, numb
     return cache
 
 
-def clear_memory_space(cache, manager, memory_space):
+def clear_memory_space(cache, memory_space):
     #Clear the specified memory space in the cache.
     validate_if_cache_not_empty(cache)
     validate_if_memory_space_exists(cache, memory_space)
-    del cache[CacheStructure.DATA][memory_space]
-    cache[CacheStructure.DATA][memory_space] = manager.dict()
+    cache[CacheStructure.DATA][memory_space].clear()
 
     
-def append_to_memory_space(cache, manager, memory_space, sound_event, audio_data):
+def append_to_memory_space(cache, memory_space, sound_event, audio_data):
     #Append data to a specified memory space and sound event in the cache
     validate_if_cache_not_empty(cache)
     validate_if_memory_space_exists(cache, memory_space)
     validate_if_memory_has_not_sound_event_or_full(cache, memory_space, sound_event)
     validate_if_sound_event_full(cache, memory_space, sound_event)
     if sound_event not in cache[CacheStructure.DATA][memory_space]:
-        cache[CacheStructure.DATA][memory_space][sound_event] = manager.list()
+        cache[CacheStructure.DATA][memory_space][sound_event] = mp.Manager().list()
     cache[CacheStructure.DATA][memory_space][sound_event].append(audio_data.tolist())   # Might be point of failure
 
 def get_audio_from_cache(cache, memory_space, sound_event, index):

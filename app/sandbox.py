@@ -34,7 +34,7 @@ llm_settings = {
 
 def main():
 
-    """
+    prompt_send = False
     path = Path("../data/models")
     generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
     generator_channel = generator.get_generator_channel()
@@ -42,10 +42,16 @@ def main():
     while True:
         message = generator_channel.recv()
         print(parallel_audio_generator.communicator_to_string(message))
-        if(message["status"] == parallel_audio_generator.GenerationStatus.WAITING_FOR_PROMPT):
-            generator_channel.send("hello world")
-    """
+        if(message["status"] == parallel_audio_generator.GenerationStatus.WAITING_FOR_PROMPT) and not prompt_send:
+            prompt_communicator = parallel_audio_generator.get_prompt_communciator("hello world", 0, "sound_event1")
+            generator_channel.send(prompt_communicator)
+        if(message["status"] == parallel_audio_generator.GenerationStatus.WRITTEN_TO_CACHE):
+            break
+    generator.print_cache()
+    generator.generator_process.join()
 
+
+    """
     path = Path("../data/models")
     generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
     cache = generator.cache
@@ -63,6 +69,7 @@ def main():
     generator.clear_memory_space(0)
 
     generator.print_cache()
+    """
 
 if __name__ == '__main__':
     main()
