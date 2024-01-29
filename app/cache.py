@@ -94,15 +94,17 @@ def get_audio_from_cache(cache, memory_space, sound_event, index):
 def cache_to_string(cache):
     #Print the contents of the cache."""
     validate_if_cache_not_empty(cache)
+    string = ""
     for memory_space, events in cache[CacheStructure.DATA].items():
-        print(f"memory_space: {memory_space}")
+        string += (f"memory_space: {memory_space}\n")
         if not events:
-            print("--empty")
+            string +=("--empty\n")
             continue
         for sound_event, audios in events.items():
-            print(f"--sound_event: {sound_event}")
+            string +=(f"--sound_event: {sound_event}\n")
             if not audios:
-                print("----empty")
+                string += ("----empty\n")
                 continue
             for audio in audios:
-                print(f"----audio: {audio}")
+                string +=(f"----audio: {audio}\n")
+    return string

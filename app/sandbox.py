@@ -26,8 +26,8 @@ audio_settings = {
 }
 
 llm_settings = {
-    "number_soundevents": 1,
-    "number_prompts": 1,
+    "number_soundevents": 4,
+    "number_prompts": 10,
     "role_system": "Your are an intelligent system that extracts prompts from a questionnaire to be used with a generative ai model. Your primary role is to analyze and interpret the responses to this questionnaire, which is focused on eliciting detailed descriptions of personal memories that users wish to re-experience through audio. From the user's descriptions, you will identify and extract !NUMBER_SOUNDEVENTS key sound events that are pivotal to each memory. For each identified sound event, you are tasked with generating !NUMBER_PROMPTS distinct but closely related prompts. These prompts will be used by a generative AI model to create audio files that encapsulate the essence of the sound events. The challenge lies in ensuring that each set of prompts remains true to the core idea of its corresponding sound event, while introducing subtle variations to offer a range of auditory experiences. This process aims to recreate a multi-faceted and immersive auditory representation of the user's cherished memories.",
     "role_user":  "Please extract !NUMBER_SOUNDEVENTS key sound events from the following Q&A and generate !NUMBER_PROMPTS prompts for each sound event. The Q&A is focused on eliciting detailed descriptions of personal memories that users wish to re-experience through audio. The prompts will be used by a generative AI model to create audio files that encapsulate the essence of the sound events. Please ensure that each set of prompts remains true to the core idea of its corresponding sound event, while introducing subtle variations to offer a range of auditory experiences. Do not use verbs like create, generate, synthesize ... but rather just describe the audio and the scene. \n Q&A: \n"
 }
@@ -57,28 +57,12 @@ def main():
     array4 = np.array([16,17,18,19,20])
 
     generator.append_to_memory_space(0, "sound_event1", array)
-    generator.append_to_memory_space(3, "sound_event2", array2)
-    
-    print("should have thrown error")
+    generator.append_to_memory_space(1, "sound_event2", array2)
+    generator.append_to_memory_space(2, "sound_event3", array3)    
 
-
-    """
-    generator.print_cache()
-    
     generator.clear_memory_space(0)
 
     generator.print_cache()
-
-    print(generator.get_audio_from_cache(1, "sound_event1", 0))
-
-    print(generator.get_len_sound_event( 1, "sound_event1"))
-
-    generator.append_to_memory_space(0, "sound_event1", array)
-
-    generator.print_cache()
-
-    generator.append_to_memory_space(3, "sound_event3", array4)
-    """
 
 if __name__ == '__main__':
     main()
