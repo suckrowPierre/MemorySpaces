@@ -4,7 +4,7 @@ mp.set_start_method('spawn', force=True)
 import numpy as np
 from enum import Enum
 import audioldm2
-
+import cache
 
 class GenerationStatus(Enum):
     EXTRACTING = "extracting sound events and prompts from q&a"
@@ -42,7 +42,7 @@ def generator(c, model_path, device, parameters, cache):
         c.send(get_communicator(GenerationStatus.GENERATING, prompt=prompt))
         audio = pipe(prompt, **parameters)
 
-
+    
 class ParallelAudioGenerator:
 
     def __init__(self, model_path, audio_settings, audio_model_settings, llm_settings):
@@ -69,66 +69,29 @@ class ParallelAudioGenerator:
 
         self.generator_parent_channel, self.generator_child_channel = mp.Pipe()
 
-        self.cache = self._initialize_cache(self.nchnls)
+        self.cache = cache._initialize_cache(self.manager, self.nchnls, self.number_soundevents, self.number_prompts)
     
     def get_generator_channel(self):
         return self.generator_parent_channel
     
-    def _initialize_cache(self, number_of_memory_spaces):
-        # Initialize the cache with specified number of memory spaces.
-        cache = self.manager.dict()
-        for i in range(number_of_memory_spaces):
-            cache[i] = self.manager.dict()
-        return cache
-    
     def clear_memory_space(self, memory_space):
-        #Clear the specified memory space in the cache.
-        self.cache[memory_space] = self.manager.dict()
+        cache.clear_memory_space(self.cache, self.manager, memory_space)
     
-    def append_to_memory_space(self, memory_space, sound_event, data):
-        #Append data to a specified memory space and sound event in the cache
-        if sound_event not in self.cache[memory_space]:
-            self.cache[memory_space][sound_event] = self.manager.list()
-        self.cache[memory_space][sound_event].append(data.tolist())   # Might be point of failure
-    
-    def create_shared_audio_array(self, audio_array):
-        #Create a shared array for audio data.
-        audio_mp_array = mp.Array('f', audio_array.shape[0])
-        audio_mp_array[:] = audio_array[:]
-        return audio_mp_array
+    def append_to_memory_space(self, memory_space, sound_event, audio_data):
+        cache.append_to_memory_space(self.cache, self.manager, memory_space, sound_event, audio_data)
     
     def get_audio_from_cache(self, memory_space, sound_event, index):
-        #Retrieve audio data from cache
-        audios = self.cache[memory_space].get(sound_event, [])
-        return audios[index] if index < len(audios) else None
+        return cache.get_audio_from_cache(self.cache, memory_space, sound_event, index)
     
     def get_len_sound_event(self, memory_space, sound_event):
-        #Get the length of a sound event in a memory space.
-        return len(self.cache[memory_space].get(sound_event, []))
+        return cache.get_len_sound_event(self.cache, memory_space, sound_event)
     
     def print_cache(self):
-        #Print the contents of the cache."""
-        for memory_space, events in self.cache.items():
-            print(f"memory_space: {memory_space}")
-            if not events:
-                print("--empty")
-                continue
-            for sound_event, audios in events.items():
-                print(f"--sound_event: {sound_event}")
-                if not audios:
-                    print("----empty")
-                    continue
-                for audio in audios:
-                    print(f"----audio: {audio}")
+        print(cache.cache_to_string(self.cache))
             
     def _init_generation_process(self):
         self.generator_process = mp.Process(target=generator, args=(self.generator_child_channel, self.model_path, self.device, self.parameters, self.cache))
         self.generator_process.start()
-
-
-
-    
-
     
     def print_settings(self):
         print("interface: " + self.interface)
