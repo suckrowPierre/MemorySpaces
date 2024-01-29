@@ -2,32 +2,53 @@ import time
 import multiprocessing as mp
 mp.set_start_method('spawn', force=True)
 import numpy as np
-import enum as Enum
+from enum import Enum
 import audioldm2
 
-"""
+
 class GenerationStatus(Enum):
     EXTRACTING = "extracting sound events and prompts from q&a"
+    INIZIALIZING = "inizializing audioldm2 pipe"
+    INIZIALIZED = "audioldm2 pipe inizialized"
+    WAITING_FOR_PROMPT = "waiting for prompt"
+    PROMPT_RECEIVED = "prompt received"
     GENERATING = "generating audio"
     PLAYING = "playing audio"
-"""
+
+def get_communicator(status, **kwargs):
+    communicator = {
+        "status": status,
+    }
+    communicator.update(kwargs)
+    return communicator
+
+def communicator_to_string(communicator):
+    string = ""
+    for key, value in communicator.items():
+        # check if value is enum 
+        if isinstance(value, Enum):
+            value = value.value
+        string += f"{key}: {value} "
+    return string
 
 def generator(c, model_path, device, parameters, cache):
-    c.send("inialize audioldm2 pipe")
+    c.send(get_communicator(GenerationStatus.INIZIALIZING))
     pipe = audioldm2.setup_pipeline(model_path, device)
-    c.send("audioldm2 pipe initialized")
+    c.send(get_communicator(GenerationStatus.INIZIALIZED))
     while True:
-        c.send("waiting for prompt")
+        c.send(get_communicator(GenerationStatus.WAITING_FOR_PROMPT))
         prompt = c.recv()
-        c.send("prompt received")
+        c.send(get_communicator(GenerationStatus.PROMPT_RECEIVED, prompt=prompt))
+        c.send(get_communicator(GenerationStatus.GENERATING, prompt=prompt))
         audio = pipe(prompt, **parameters)
-        c.send("audio generated")
+
 
 class ParallelAudioGenerator:
 
     def __init__(self, model_path, audio_settings, audio_model_settings, llm_settings):
         self.manager = mp.Manager()
 
+        self.extraction_process = None
         self.generator_process = None
         self.playback_processes = []
 

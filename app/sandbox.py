@@ -33,14 +33,16 @@ llm_settings = {
 
 def main():
 
+    test = parallel_audio_generator.get_communicator(parallel_audio_generator.GenerationStatus.INIZIALIZING)
+
     path = Path("../data/models")
     generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
     generator_channel = generator.get_generator_channel()
     generator._init_generation_process()
     while True:
         message = generator_channel.recv()
-        print(message)
-        if(message == "waiting for prompt"):
+        print(parallel_audio_generator.communicator_to_string(message))
+        if(message["status"] == parallel_audio_generator.GenerationStatus.WAITING_FOR_PROMPT):
             generator_channel.send("hello world")
 
 
