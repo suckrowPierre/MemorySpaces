@@ -26,50 +26,69 @@ audio_settings = {
 }
 
 llm_settings = {
-    "number_soundevents": 4,
-    "number_prompts": 10,
+    "number_soundevents": 1,
+    "number_prompts": 1,
     "role_system": "Your are an intelligent system that extracts prompts from a questionnaire to be used with a generative ai model. Your primary role is to analyze and interpret the responses to this questionnaire, which is focused on eliciting detailed descriptions of personal memories that users wish to re-experience through audio. From the user's descriptions, you will identify and extract !NUMBER_SOUNDEVENTS key sound events that are pivotal to each memory. For each identified sound event, you are tasked with generating !NUMBER_PROMPTS distinct but closely related prompts. These prompts will be used by a generative AI model to create audio files that encapsulate the essence of the sound events. The challenge lies in ensuring that each set of prompts remains true to the core idea of its corresponding sound event, while introducing subtle variations to offer a range of auditory experiences. This process aims to recreate a multi-faceted and immersive auditory representation of the user's cherished memories.",
     "role_user":  "Please extract !NUMBER_SOUNDEVENTS key sound events from the following Q&A and generate !NUMBER_PROMPTS prompts for each sound event. The Q&A is focused on eliciting detailed descriptions of personal memories that users wish to re-experience through audio. The prompts will be used by a generative AI model to create audio files that encapsulate the essence of the sound events. Please ensure that each set of prompts remains true to the core idea of its corresponding sound event, while introducing subtle variations to offer a range of auditory experiences. Do not use verbs like create, generate, synthesize ... but rather just describe the audio and the scene. \n Q&A: \n"
 }
 
 def main():
 
-    prompt_send = False
+
+
     path = Path("../data/models")
     generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
     generator_channel = generator.get_generator_channel()
-    generator._init_generation_process()
-    while True:
-        message = generator_channel.recv()
-        print(parallel_audio_generator.communicator_to_string(message))
-        if(message["status"] == parallel_audio_generator.GenerationStatus.WAITING_FOR_PROMPT) and not prompt_send:
-            prompt_communicator = parallel_audio_generator.get_prompt_communciator("hello world", 0, "sound_event1")
-            generator_channel.send(prompt_communicator)
-        if(message["status"] == parallel_audio_generator.GenerationStatus.WRITTEN_TO_CACHE):
-            break
+    generator.init_generation_process()
+
+
+    msg = generator_channel.recv()
+    while(msg["status"] != parallel_audio_generator.CommStatus.WAITING):
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = generator_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
+    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.CommCommand.PROMPT_INPUT, prompt="test", memory_space_index=0, sound_event_index=0, prompt_index=0))
+
+    msg = generator_channel.recv()
+    while (msg["status"] != parallel_audio_generator.CommStatus.CACHED):
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = generator_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
+
+    #generator.generator_process.join()
     generator.print_cache()
-    generator.generator_process.join()
 
+    msg = generator_channel.recv()
+    while(msg["status"] != parallel_audio_generator.CommStatus.WAITING):
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = generator_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
+    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.CommCommand.PROMPT_INPUT, prompt="test", memory_space_index=1, sound_event_index=0, prompt_index=0))
 
-    """
-    path = Path("../data/models")
-    generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
-    cache = generator.cache
-    manager = generator.manager
-
-    array = np.array([1,2,3,4,5])
-    array2 = np.array([6,7,8,9,10])
-    array3 = np.array([11,12,13,14,15])
-    array4 = np.array([16,17,18,19,20])
-
-    generator.append_to_memory_space(0, "sound_event1", array)
-    generator.append_to_memory_space(1, "sound_event2", array2)
-    generator.append_to_memory_space(2, "sound_event3", array3)    
-
-    generator.clear_memory_space(0)
+    msg = generator_channel.recv()
+    while (msg["status"] != parallel_audio_generator.CommStatus.CACHED):
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = generator_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
 
     generator.print_cache()
-    """
+
+    msg = generator_channel.recv()
+    while(msg["status"] != parallel_audio_generator.CommStatus.WAITING):
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = generator_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
+    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.CommCommand.CLEAR_MEMORY, memory_space_index=0))
+
+    msg = generator_channel.recv()
+    while (msg["status"] != parallel_audio_generator.CommStatus.MEMORY_CLEARED):
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = generator_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
+
+    generator.print_cache()
+
+
 
 if __name__ == '__main__':
     main()
