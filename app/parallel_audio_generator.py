@@ -4,13 +4,14 @@ import numpy as np
 from enum import Enum
 import audioldm2
 import cache
+import llm
 
 mp.set_start_method('spawn', force=True)
 
 
-class CommStatus(Enum):
+class GeneratorCommStatus(Enum):
     # extractor
-    EXTRACTING = "Extracting sound events and prompts from q&a"
+   
 
     # generator
     INITIALIZING = "Initializing audio pipeline"
@@ -24,17 +25,24 @@ class CommStatus(Enum):
     PLAYING = "Playing audio"
 
 
-class CommCommand(Enum):
+class GeneratorCommCommand(Enum):
     PROMPT_INPUT = "Prompt input"
     CLEAR_MEMORY = "flash memory space"
+
+class ExtractorCommStatus(Enum):
+    INITIALIZING = "Initializing LLM"
+    INITIALIZED = "LLM initialized"
+    WAITING = "Waiting for input"
+
+
 
 
 def create_communicator(enum, **kwargs):
     communicator = {}
-    if isinstance(enum, CommStatus):
+    if isinstance(enum, GeneratorCommStatus):
         communicator = {"status": enum}
         communicator.update(kwargs)
-    elif isinstance(enum, CommCommand):
+    elif isinstance(enum, GeneratorCommCommand):
         communicator = {"command": enum}
         communicator.update(kwargs)
     return communicator
@@ -48,28 +56,32 @@ def communicator_to_string(communicator):
         string += f"{key}: {value} "
     return string
 
+def extractor(generator_communication_pipe):
+    t = 1
+    #TODO
+
 
 def generator(communication_pipe, model_path, device, parameters, audio_cache, critical_mass=10):
-    communication_pipe.send(create_communicator(CommStatus.INITIALIZING))
+    communication_pipe.send(create_communicator(GeneratorCommStatus.INITIALIZING))
     audio_pipe = audioldm2.setup_pipeline(model_path, device)
-    communication_pipe.send(create_communicator(CommStatus.INITIALIZED))
+    communication_pipe.send(create_communicator(GeneratorCommStatus.INITIALIZED))
 
     while True:
-        communication_pipe.send(create_communicator(CommStatus.WAITING))
+        communication_pipe.send(create_communicator(GeneratorCommStatus.WAITING))
         msg = communication_pipe.recv()
-        if msg["command"] == CommCommand.PROMPT_INPUT:
+        if msg["command"] == GeneratorCommCommand.PROMPT_INPUT:
             prompt, memory_space_index, sound_event_index, prompt_index = msg["prompt"], msg[
                 "memory_space_index"], msg["sound_event_index"], msg["prompt_index"]
             model_parameters = {"prompt": prompt, **parameters}
-            communication_pipe.send(create_communicator(CommStatus.GENERATING))
+            communication_pipe.send(create_communicator(GeneratorCommStatus.GENERATING))
             audio = audioldm2.text2audio(audio_pipe, model_parameters)
             cache.put_audio_array_into_cache(audio_cache, memory_space_index, sound_event_index, prompt_index, audio)
-            communication_pipe.send(create_communicator(CommStatus.CACHED))
+            communication_pipe.send(create_communicator(GeneratorCommStatus.CACHED))
             # check if critical mass is reached
             # ---- if yes send signal to playback process
-        elif msg["command"] == CommCommand.CLEAR_MEMORY:
+        elif msg["command"] == GeneratorCommCommand.CLEAR_MEMORY:
             cache.clear_memory_space(audio_cache, msg["memory_space_index"])
-            communication_pipe.send(create_communicator(CommStatus.MEMORY_CLEARED))
+            communication_pipe.send(create_communicator(GeneratorCommStatus.MEMORY_CLEARED))
 
 
 class ParallelAudioGenerator:
@@ -115,3 +127,7 @@ class ParallelAudioGenerator:
         self.generator_process = mp.Process(target=generator, args=(
             self.generator_child_channel, self.model_path, self.device, self.parameters, self.audio_cache))
         self.generator_process.start()
+
+    def init_extraction_process(self):
+        t = 1
+        #TODO

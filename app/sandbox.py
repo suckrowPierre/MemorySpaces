@@ -43,14 +43,14 @@ def main():
 
 
     msg = generator_channel.recv()
-    while(msg["status"] != parallel_audio_generator.CommStatus.WAITING):
+    while(msg["status"] != parallel_audio_generator.GeneratorCommStatus.WAITING):
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = generator_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
-    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.CommCommand.PROMPT_INPUT, prompt="test", memory_space_index=0, sound_event_index=0, prompt_index=0))
+    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.GeneratorCommCommand.PROMPT_INPUT, prompt="test", memory_space_index=0, sound_event_index=0, prompt_index=0))
 
     msg = generator_channel.recv()
-    while (msg["status"] != parallel_audio_generator.CommStatus.CACHED):
+    while (msg["status"] != parallel_audio_generator.GeneratorCommStatus.CACHED):
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = generator_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
@@ -59,14 +59,14 @@ def main():
     generator.print_cache()
 
     msg = generator_channel.recv()
-    while(msg["status"] != parallel_audio_generator.CommStatus.WAITING):
+    while(msg["status"] != parallel_audio_generator.GeneratorCommStatus.WAITING):
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = generator_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
-    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.CommCommand.PROMPT_INPUT, prompt="test", memory_space_index=1, sound_event_index=0, prompt_index=0))
+    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.GeneratorCommCommand.PROMPT_INPUT, prompt="test", memory_space_index=1, sound_event_index=0, prompt_index=0))
 
     msg = generator_channel.recv()
-    while (msg["status"] != parallel_audio_generator.CommStatus.CACHED):
+    while (msg["status"] != parallel_audio_generator.GeneratorCommStatus.CACHED):
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = generator_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
@@ -74,14 +74,14 @@ def main():
     generator.print_cache()
 
     msg = generator_channel.recv()
-    while(msg["status"] != parallel_audio_generator.CommStatus.WAITING):
+    while(msg["status"] != parallel_audio_generator.GeneratorCommStatus.WAITING):
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = generator_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
-    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.CommCommand.CLEAR_MEMORY, memory_space_index=0))
+    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.GeneratorCommCommand.CLEAR_MEMORY, memory_space_index=0))
 
     msg = generator_channel.recv()
-    while (msg["status"] != parallel_audio_generator.CommStatus.MEMORY_CLEARED):
+    while (msg["status"] != parallel_audio_generator.GeneratorCommStatus.MEMORY_CLEARED):
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = generator_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
