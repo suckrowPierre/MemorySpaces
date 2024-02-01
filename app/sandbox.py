@@ -1,6 +1,7 @@
 import parallel_audio_generator
 from pathlib import Path
 import numpy as np
+import os
 
 audio_model_settings = {
     "model": "audioldm2",
@@ -26,16 +27,15 @@ audio_settings = {
 }
 
 llm_settings = {
-    "number_soundevents": 1,
+    "number_sound_events": 1,
     "number_prompts": 1,
     "role_system": "Your are an intelligent system that extracts prompts from a questionnaire to be used with a generative ai model. Your primary role is to analyze and interpret the responses to this questionnaire, which is focused on eliciting detailed descriptions of personal memories that users wish to re-experience through audio. From the user's descriptions, you will identify and extract !NUMBER_SOUNDEVENTS key sound events that are pivotal to each memory. For each identified sound event, you are tasked with generating !NUMBER_PROMPTS distinct but closely related prompts. These prompts will be used by a generative AI model to create audio files that encapsulate the essence of the sound events. The challenge lies in ensuring that each set of prompts remains true to the core idea of its corresponding sound event, while introducing subtle variations to offer a range of auditory experiences. This process aims to recreate a multi-faceted and immersive auditory representation of the user's cherished memories.",
-    "role_user":  "Please extract !NUMBER_SOUNDEVENTS key sound events from the following Q&A and generate !NUMBER_PROMPTS prompts for each sound event. The Q&A is focused on eliciting detailed descriptions of personal memories that users wish to re-experience through audio. The prompts will be used by a generative AI model to create audio files that encapsulate the essence of the sound events. Please ensure that each set of prompts remains true to the core idea of its corresponding sound event, while introducing subtle variations to offer a range of auditory experiences. Do not use verbs like create, generate, synthesize ... but rather just describe the audio and the scene. \n Q&A: \n"
+    "role_user":  "Please extract !NUMBER_SOUNDEVENTS key sound events from the following Q&A and generate !NUMBER_PROMPTS prompts for each sound event. The Q&A is focused on eliciting detailed descriptions of personal memories that users wish to re-experience through audio. The prompts will be used by a generative AI model to create audio files that encapsulate the essence of the sound events. Please ensure that each set of prompts remains true to the core idea of its corresponding sound event, while introducing subtle variations to offer a range of auditory experiences. Do not use verbs like create, generate, synthesize ... but rather just describe the audio and the scene. \n Q&A: \n",
+    "model": "gpt-4-1106-preview"
 }
 
-def main():
 
-
-
+def test_generator():
     path = Path("../data/models")
     generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
     generator_channel = generator.get_generator_channel()
@@ -87,6 +87,40 @@ def main():
     print(parallel_audio_generator.communicator_to_string(msg))
 
     generator.print_cache()
+
+def test_extractor():
+
+    path = Path("../data/models")
+    generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings,
+                                                                llm_settings)
+    extractor_channel = generator.get_extractor_channel()
+    generator.init_extraction_process()
+    msg = extractor_channel.recv()
+    while msg["status"] != parallel_audio_generator.ExtractorCommStatus.WAITING:
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = extractor_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
+
+    file = open("QA.txt")
+    qua = file.read()
+
+    extractor_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.ExtractorCommCommand.QA_INPUT, qa=qua, memory_space_index=0))
+
+    msg = extractor_channel.recv()
+    while(msg["status"] != parallel_audio_generator.ExtractorCommStatus.PROMPTS_QUEUED):
+        print(parallel_audio_generator.communicator_to_string(msg))
+        msg = extractor_channel.recv()
+    print(parallel_audio_generator.communicator_to_string(msg))
+
+    generator.print_prompt_queue()
+
+
+def main():
+    #test_generator()
+    test_extractor()
+
+
+
 
 
 
