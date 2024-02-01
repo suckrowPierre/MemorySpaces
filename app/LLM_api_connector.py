@@ -23,25 +23,40 @@ function_schema = {
 }
 
 
-def fill_replacement_with_int(text, replacement_keyword, number):
-    return text.replace(replacement_keyword, str(number))
+def replace_keywords_with_int(text, replacement_keywords_number_mapping):
+    if not all([text, replacement_keywords_number_mapping is not None]):
+        raise ValueError("None arguments are not allowed")
+    for keyword, number in replacement_keywords_number_mapping.items():
+        text = text.replace(keyword, str(number))
+    return text
 
 
-def create_message_construct(**kwargs):
-    role, user, number_sound_events, number_prompts = kwargs["role_system"], kwargs["role_user"], kwargs["number_sound_events"], kwargs["number_prompts"]
+def create_message_structure(**kwargs):
+    role_system, role_user, number_sound_events, number_prompts = kwargs["role_system"], kwargs["role_user"], kwargs[
+        "number_sound_events"], kwargs["number_prompts"]
+    if not all([role_system, role_user, number_sound_events is not None, number_prompts is not None]):
+        raise ValueError("None arguments are not allowed")
+    replace_mapping = {"!NUMBER_SOUNDEVENTS": number_sound_events, "!NUMBER_PROMPTS": number_prompts}
     message_construct = [
-       {"role": "system", "content": fill_replacement_with_int(role, "!NUMBER_SOUNDEVENTS", number_sound_events)},
-       {"role": "user", "content": fill_replacement_with_int(user, "!NUMBER_PROMPTS", number_prompts)}
-    ] 
+        {"role": "system",
+         "content": replace_keywords_with_int(role_system, replace_mapping)},
+        {"role": "user", "content": replace_keywords_with_int(role_system, replace_mapping)}
+    ]
     return message_construct
 
 
+class LLMApiConnector:
 
-class LLM_api_connector:
-    def __init__(self, apikey, **kwargs):
-        self.model = kwargs.pop("model")
-        self.client = OpenAI(api_key=apikey)
-        self.message_construct = create_message_construct(**kwargs)
+    def __init__(self, api_key, **kwargs):
+        self.client = OpenAI(api_key=api_key)
+        model = kwargs.pop("model")
+        if model is None:
+            raise ValueError("model must not be None")
+        self.model = model
+        message_construct = create_message_structure(**kwargs)
+        if message_construct is None:
+            raise ValueError("message_construct must not be None")
+        self.message_construct = message_construct
 
     def append_q_and_a_to_message_construct(self, q_and_a):
         copy_message_construct = self.message_construct.copy()
@@ -49,28 +64,15 @@ class LLM_api_connector:
         return copy_message_construct
 
     def extract_prompts(self, q_and_a):
+        messages = self.append_q_and_a_to_message_construct(q_and_a)
         try:
-            messages = self.append_q_and_a_to_message_construct(q_and_a)
-            print(function_schema)
             completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                functions=[function_schema],
-                function_call={"name": function_name}
-            )
-            # Checking if the completion has a function call response
-            print(completion)
-            if 'function_call' in completion.choices[0].message:
-                function_call = completion.choices[0].message.function_call
-                json_output = json.loads(function_call.arguments)
-                python_list = json_output.get("prompts", [])
-                return python_list
-            else:
-                # Handle cases where function call might not be present in response
-                print("No function call found in the response.")
-                return []
+                model=self.model, messages=messages, functions=[function_schema], function_call={"name": function_name})
+            function_call = completion.choices[0].message.function_call
+            json_output = json.loads(function_call.arguments)
+            prompt_list = json_output.get("prompts", [])
         except Exception as e:
-            # Logging the exception
-            print(f"An error occurred: {e}")
-            return []
-
+            raise e
+        if prompt_list is None:
+            raise ValueError("LLM did not return any prompts")
+        return prompt_list

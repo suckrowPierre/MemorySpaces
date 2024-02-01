@@ -118,11 +118,11 @@ function createAudioModelSettingsContent(audioModelSettings) {
 
 function createLLMSettingsContent(llmSettings) {
     let content = '';
-    if (llmSettings.number_soundevents){
+    if (llmSettings.number_sound_events){
         //validation if whole int 
-        content += `Number Soundevents: ${createInputField("llm_settings-number_soundevents", "number", llmSettings.number_soundevents)}<br>`;
+        content += `Number Soundevents: ${createInputField("llm_settings-number_sound_events", "number", llmSettings.number_sound_events)}<br>`;
     }
-    if (llmSettings. number_prompts){
+    if (llmSettings.number_prompts){
         //validation if whole int 
         content += `Number Prompts: ${createInputField("llm_settings-number_prompts", "number", llmSettings.number_prompts)}<br>`;
     }

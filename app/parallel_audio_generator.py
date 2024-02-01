@@ -63,11 +63,10 @@ def communicator_to_string(communicator):
     return string
 
 
-def extractor(extractor_communication_pipe, prompt_queue, llm_settings):
+def extractor(extractor_communication_pipe, prompt_queue, llm_settings, api_key):
     extractor_communication_pipe.send(create_communicator(ExtractorCommStatus.INITIALIZING))
 
-
-    llm = LLMac.LLM_api_connector("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", **llm_settings)
+    llm = LLMac.LLMApiConnector(api_key, **llm_settings)
     extractor_communication_pipe.send(create_communicator(ExtractorCommStatus.INITIALIZED))
     while True:
         extractor_communication_pipe.send(create_communicator(ExtractorCommStatus.WAITING))
@@ -77,11 +76,8 @@ def extractor(extractor_communication_pipe, prompt_queue, llm_settings):
             qa = msg["qa"]
             memory_space_index = msg["memory_space_index"]
             prompt_list = llm.extract_prompts(qa)
-            print(prompt_list)
             extractor_communication_pipe.send(create_communicator(ExtractorCommStatus.PROMPTS_EXTRACTED))
-            for i in range(len(prompt_list)):
-                for j in range(len(prompt_list[i])):
-                    prompt_queue.append((prompt_list[i][j], memory_space_index, i, j))
+            pq.add_prompts_to_queue_bulk(prompt_queue, prompt_list, memory_space_index, llm_settings["number_sound_events"], llm_settings["number_prompts"])
             extractor_communication_pipe.send(create_communicator(ExtractorCommStatus.PROMPTS_QUEUED))
 
     # TODO
@@ -113,8 +109,9 @@ def generator(communication_pipe, model_path, device, parameters, audio_cache, c
 
 class ParallelAudioGenerator:
 
-    def __init__(self, model_path, audio_settings, audio_model_settings, llm_settings):
+    def __init__(self, model_path, api_key, audio_settings, audio_model_settings, llm_settings):
         self.llm_settings = llm_settings
+        self.api_key = api_key
 
         self.sr = 16000
         self.channels = [audio_settings["channel1"], audio_settings["channel2"], audio_settings["channel3"]]
@@ -159,7 +156,8 @@ class ParallelAudioGenerator:
         print(cache.cache_to_string(self.audio_cache))
 
     def print_prompt_queue(self):
-        print(pq.prompt_queue_to_string(self.prompt_queue))
+        print(self.prompt_queue)
+        # print(pq.prompt_queue_to_string(self.prompt_queue))
 
     def init_generation_process(self):
         self.generator_process = mp.Process(target=generator, args=(
@@ -168,5 +166,5 @@ class ParallelAudioGenerator:
 
     def init_extraction_process(self):
         self.extraction_process = mp.Process(target=extractor, args=(
-            self.extractor_child_channel, self.prompt_queue, self.llm_settings))
+            self.extractor_child_channel, self.prompt_queue, self.llm_settings, self.api_key))
         self.extraction_process.start()

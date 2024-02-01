@@ -18,7 +18,7 @@ def initialize_cache(manager, number_of_memory_spaces, number_soundevents, numbe
     for i in range(number_of_memory_spaces):
         cache[CacheStructure.DATA][i] = manager.list(range(number_soundevents))
         for j in range(number_soundevents):
-            cache[CacheStructure.DATA][i][j] = manager.list(range(number_soundevents))
+            cache[CacheStructure.DATA][i][j] = manager.list(range(number_prompts))
             for k in range(number_prompts):
                 cache[CacheStructure.DATA][i][j][k] = manager.list()
     return cache
@@ -54,7 +54,6 @@ def clear_memory_space(cache, memory_space_index):
         clear_sound_event(cache, memory_space_index, sound_event_index)
 
 def cache_to_string(cache):
-    # Print the contents of the cache."""
     if len(cache[CacheStructure.DATA]) == 0:
         return "Cache is empty"
     string = ""

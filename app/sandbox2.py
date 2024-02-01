@@ -1,4 +1,6 @@
-import sandbox3
+import new_LLM
+from dotenv import load_dotenv
+import os
 
 
 llm_settings = {
@@ -10,10 +12,13 @@ llm_settings = {
 }
 
 def main():
-    llm=sandbox3.LLMApiConnector("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", **llm_settings)
     file = open("QA.txt")
-    qua = file.read()
-    list_prompts = llm.extract_prompts(qua, **llm_settings)
+    qa = file.read()
+
+    load_dotenv()
+    api_key = os.getenv("LLM_API_KEY")
+    llm=new_LLM.LLMApiConnector(api_key, **llm_settings)
+    list_prompts = llm.extract_prompts(qa)
     print(list_prompts)
 
 if __name__ == "__main__":
