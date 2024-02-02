@@ -98,7 +98,7 @@ def test_extractor():
     extractor_channel = generator.get_extractor_channel()
     generator.init_extraction_process()
     msg = extractor_channel.recv()
-    while msg["status"] != parallel_audio_generator.ExtractorCommStatus.WAITING:
+    while msg["status"] != parallel_audio_generator.ExtractoStatus.WAITING:
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = extractor_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
@@ -109,7 +109,7 @@ def test_extractor():
     extractor_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.ExtractorCommCommand.QA_INPUT, qa=qua, memory_space_index=0))
 
     msg = extractor_channel.recv()
-    while(msg["status"] != parallel_audio_generator.ExtractorCommStatus.PROMPTS_QUEUED):
+    while(msg["status"] != parallel_audio_generator.ExtractoStatus.PROMPTS_QUEUED):
         print(parallel_audio_generator.communicator_to_string(msg))
         msg = extractor_channel.recv()
     print(parallel_audio_generator.communicator_to_string(msg))
