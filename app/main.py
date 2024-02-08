@@ -7,8 +7,10 @@ import os
 import hashlib
 from pydantic import BaseModel
 from typing import List
+from pathlib import Path
 from . import audio_interface_helper as aih
 from . import settings
+from . import parallel_processor
 
 app = FastAPI()
 load_dotenv()
@@ -18,6 +20,10 @@ templates = Jinja2Templates(directory="templates")
 PASSWORD = hashlib.md5((os.getenv("PASSWORD").encode()))
 settings_cache = settings.SettingsCache()
 
+API_KEY = os.getenv("LLM_API_KEY")
+MODEL_PATH = Path("../data/models")
+
+generator = None
 
 
 testing_classes = {
@@ -37,6 +43,17 @@ QUESTIONS = load_questions()
 @app.get("/")
 async def get(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/start")
+async def start():
+    global generator
+    settings = get_settings_json(load_from_disk=True)
+    audio_settings = settings["settings"]["audio_settings"]
+    audio_model_settings = settings["settings"]["audio_model_settings"]
+    llm_settings = settings["settings"]["llm_settings"]
+    generator = parallel_processor.ParallelProcessor(MODEL_PATH, API_KEY,  audio_settings, audio_model_settings,
+                                                    llm_settings)
+    return JSONResponse(content={"success": True})
 
 @app.post("/login")
 async def login(password: dict):

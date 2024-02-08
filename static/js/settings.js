@@ -24,7 +24,21 @@ async function saveSettings() {
     changes = {};
 }
 
-
+async function startProgramm() {
+    const response = await fetch('/start', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+    });
+    const data = await response.json();
+    if (data.success) {
+        alert("Programm started successfully");
+    } else {
+        alert("Error starting programm");
+    }
+}
 
 
 function initializeSettingsListeners() {
@@ -154,4 +168,4 @@ function createSettingsSection(settings, sectionName, contentGenerator) {
     return settings[sectionName] ? `<div class="${sectionName}"><h2>${sectionName.replace(/_/g, ' ')}</h2>${contentGenerator(settings[sectionName])}</div><br>` : '';
 }
 
-export { loadSettings, getSettingHTML, initializeSettingsListeners, saveSettings};
+export { loadSettings, getSettingHTML, initializeSettingsListeners, saveSettings, startProgramm};

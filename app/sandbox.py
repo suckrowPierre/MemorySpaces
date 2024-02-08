@@ -1,4 +1,4 @@
-import parallel_audio_generator
+import app.parallel_processor as parallel_processor
 from pathlib import Path
 from dotenv import load_dotenv
 import os
@@ -35,84 +35,33 @@ llm_settings = {
     "model": "gpt-4-1106-preview"
 }
 
-
-def test_generator():
-    path = Path("../data/models")
-    generator = parallel_audio_generator.ParallelAudioGenerator(path, audio_settings, audio_model_settings, llm_settings)
-    generator_channel = generator.get_generator_channel()
-    generator.init_generation_process()
-
-
-    msg = generator_channel.recv()
-    while(msg["status"] != parallel_audio_generator.GeneratorCommStatus.WAITING):
-        print(parallel_audio_generator.communicator_to_string(msg))
-        msg = generator_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
-    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.GeneratorCommCommand.PROMPT_INPUT, prompt="test", memory_space_index=0, sound_event_index=0, prompt_index=0))
-
-    msg = generator_channel.recv()
-    while (msg["status"] != parallel_audio_generator.GeneratorCommStatus.CACHED):
-        print(parallel_audio_generator.communicator_to_string(msg))
-        msg = generator_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
-
-    #generator.generator_process.join()
-    generator.print_cache()
-
-    msg = generator_channel.recv()
-    while(msg["status"] != parallel_audio_generator.GeneratorCommStatus.WAITING):
-        print(parallel_audio_generator.communicator_to_string(msg))
-        msg = generator_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
-    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.GeneratorCommCommand.PROMPT_INPUT, prompt="test", memory_space_index=1, sound_event_index=0, prompt_index=0))
-
-    msg = generator_channel.recv()
-    while (msg["status"] != parallel_audio_generator.GeneratorCommStatus.CACHED):
-        print(parallel_audio_generator.communicator_to_string(msg))
-        msg = generator_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
-
-    generator.print_cache()
-
-    msg = generator_channel.recv()
-    while(msg["status"] != parallel_audio_generator.GeneratorCommStatus.WAITING):
-        print(parallel_audio_generator.communicator_to_string(msg))
-        msg = generator_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
-    generator_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.GeneratorCommCommand.CLEAR_MEMORY, memory_space_index=0))
-
-    msg = generator_channel.recv()
-    while (msg["status"] != parallel_audio_generator.GeneratorCommStatus.MEMORY_CLEARED):
-        print(parallel_audio_generator.communicator_to_string(msg))
-        msg = generator_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
-
-    generator.print_cache()
-
 def test_extractor():
     load_dotenv()
     api_key = os.getenv("LLM_API_KEY")
     path = Path("../data/models")
-    generator = parallel_audio_generator.ParallelAudioGenerator(path, api_key,  audio_settings, audio_model_settings,
+    generator = parallel_processor.ParallelProcessor(path, api_key,  audio_settings, audio_model_settings,
                                                                 llm_settings)
     extractor_channel = generator.get_extractor_channel()
+    generator.init_generation_process()
     generator.init_extraction_process()
     msg = extractor_channel.recv()
-    while msg["status"] != parallel_audio_generator.ExtractoStatus.WAITING:
-        print(parallel_audio_generator.communicator_to_string(msg))
+    while msg["status"] != parallel_processor.ExtractoStatus.WAITING:
+        print(parallel_processor.communicator_to_string(msg))
         msg = extractor_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
+    print(parallel_processor.communicator_to_string(msg))
 
     file = open("QA.txt")
     qua = file.read()
 
-    extractor_channel.send(parallel_audio_generator.create_communicator(parallel_audio_generator.ExtractorCommCommand.QA_INPUT, qa=qua, memory_space_index=0))
+    extractor_channel.send(parallel_processor.create_communicator(parallel_processor.ExtractorCommCommand.QA_INPUT, qa=qua, memory_space_index=0))
 
     msg = extractor_channel.recv()
-    while(msg["status"] != parallel_audio_generator.ExtractoStatus.PROMPTS_QUEUED):
-        print(parallel_audio_generator.communicator_to_string(msg))
+    while(True):
+        print(parallel_processor.communicator_to_string(msg))
         msg = extractor_channel.recv()
-    print(parallel_audio_generator.communicator_to_string(msg))
+
+    
+    print(parallel_processor.communicator_to_string(msg))
 
     generator.print_prompt_queue()
 

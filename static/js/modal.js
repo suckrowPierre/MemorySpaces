@@ -1,6 +1,6 @@
 import { loginContent, submitPassword } from './login.js';
 import { loadQuestionsAndAnswers, submitAnswers } from './q-a.js';
-import { getSettingHTML, loadSettings, initializeSettingsListeners, saveSettings } from './settings.js';
+import { getSettingHTML, loadSettings, initializeSettingsListeners, saveSettings, startProgramm } from './settings.js';
 
 var modal = document.getElementById("modal");
 
@@ -12,10 +12,13 @@ document.addEventListener("click", (event) => {
     else if (id === "load-settings-from-disk") loadAndUpdateSettings(true);
     else if (id === "save-settings") saveSettings();
     else if (id === "start-programm") {
+        startProgramm();
         closeModal();
         //TODO
     }
 });
+
+
 
 async function loadAndUpdateSettings(fromDisk=false) {
     const settings = await loadSettings(fromDisk);

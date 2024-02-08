@@ -64,7 +64,7 @@ def pop_random_element(queue):
     queue[random_index], queue[-1] = queue[-1], queue[random_index]
     prompt_with_prefix = queue.pop()
     memory_space_index, sound_event_index, prompt_index, prompt = prompt_with_prefix.split("_")
-    return memory_space_index, sound_event_index, prompt_index, prompt
+    return int(memory_space_index), int(sound_event_index), int(prompt_index), prompt
 
 
 def prompt_queue_to_string(queue):

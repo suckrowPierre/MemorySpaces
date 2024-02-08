@@ -2,12 +2,15 @@ import time
 import multiprocessing as mp
 import numpy as np
 from enum import Enum
-import audioldm2
-import cache
-import LLM_api_connector as LLMac
-import prompt_queue as pq
 import ctypes
-
+#import audioldm2
+#import cache
+#import LLM_api_connector as LLMac
+#import prompt_queue as pq
+from . import audioldm2
+from . import cache
+from . import LLM_api_connector as LLMac
+from . import prompt_queue as pq
 mp.set_start_method('spawn', force=True)
 
 
@@ -58,12 +61,10 @@ def communicator_to_string(communicator):
 def wait_for_status(communication_pipe, status):
     msg = communication_pipe.recv()
     while msg["status"] != status:
-        print(msg)
         msg = communication_pipe.recv()
-    print(msg)
 
 def clear_memory_space_from_queue(prompt_queue, memory_space_index):
-    pq.clear_memory_space(prompt_queue, memory_space_index)
+    pq.clear_memory_space_from_queue(prompt_queue, memory_space_index)
 
 def clear_memory_space_from_cache(extractor_communication_pipe, audio_cache, memory_space_index):
     cache.clear_memory_space(audio_cache, memory_space_index)
@@ -74,6 +75,12 @@ def extract_prompts(extractor_communication_pipe, llm, qa):
     prompt_list = llm.extract_prompts(qa)
     extractor_communication_pipe.send(create_communicator(ExtractoStatus.PROMPTS_EXTRACTED))
     return prompt_list
+
+def block_generator(generator_blocked_boolean):
+    generator_blocked_boolean.value = True
+
+def unblock_generator(generator_blocked_boolean):
+    generator_blocked_boolean.value = False
 
 
 def queue_prompts(extractor_communication_pipe, prompt_queue, llm_settings, memory_space_index, prompts):
@@ -93,19 +100,24 @@ def extractor(extractor_communication_pipe, generator__communication_pipe, gener
         if msg["command"] == ExtractorCommCommand.QA_INPUT:
             memory_space_index, qa = msg["memory_space_index"], msg["qa"]
             try:
-                generator_blocked_boolean = True
+                block_generator(generator_blocked_boolean)
                 wait_for_status(generator__communication_pipe, GeneratorStatus.BLOCKED)
+                print("blocked generator")
                 clear_memory_space_from_queue(prompt_queue, memory_space_index)
-                generator_blocked_boolean = False
+                print("cleared memory")
+                unblock_generator(generator_blocked_boolean)
                 wait_for_status(generator__communication_pipe, GeneratorStatus.UNBLOCKED)
-                prompts = extract_prompts(extractor_communication_pipe, prompt_queue, llm_settings, llm, memory_space_index, qa)
-                generator_blocked_boolean = True
+                print("unblocked generator")
+                prompts = extract_prompts(extractor_communication_pipe,llm,qa)
+                block_generator(generator_blocked_boolean)
                 wait_for_status(generator__communication_pipe, GeneratorStatus.BLOCKED)
+                print("blocked generator")
                 queue_prompts(extractor_communication_pipe, prompt_queue, llm_settings, memory_space_index, prompts)
                 # stop playback
                 clear_memory_space_from_cache(extractor_communication_pipe, audio_cache, memory_space_index)
-                generator_blocked_boolean = False
+                unblock_generator(generator_blocked_boolean)
                 wait_for_status(generator__communication_pipe, GeneratorStatus.UNBLOCKED)
+                print("unblocked generator")
             except Exception as e:
                 print(e)
                 extractor_communication_pipe.send(create_communicator(ExtractoStatus.ERROR))
@@ -128,23 +140,31 @@ def generator(communication_pipe, generator_blocked_boolean, model_path, device,
     communication_pipe.send(create_communicator(GeneratorStatus.INITIALIZED))
 
     while True:
-        if generator_blocked_boolean:
+        if generator_blocked_boolean.value:
             communication_pipe.send(create_communicator(GeneratorStatus.BLOCKED))
-            time.sleep(0.1)
+            time.sleep(1)
             #continue
         else: 
             communication_pipe.send(create_communicator(GeneratorStatus.UNBLOCKED))
-            memory_space_index, sound_event_index, prompt_index, prompt = pop_prompt(prompt_queue)
-            print(create_communicator(GeneratorStatus.GENERATING, memory_space_index=memory_space_index, sound_event_index=sound_event_index, prompt_index=prompt_index, prompt=prompt))
-            audio = generate(audio_pipe, parameters, prompt)
-            cache_audio(audio_cache, memory_space_index, sound_event_index, prompt_index, audio)
-            print(create_communicator(GeneratorStatus.CACHED, memory_space_index=memory_space_index, sound_event_index=sound_event_index, prompt_index=prompt_index))
-            
+            try: 
+                try:
+                    memory_space_index, sound_event_index, prompt_index, prompt = pop_prompt(prompt_queue)
+                except ValueError:
+                    time.sleep(1)
+                    continue
+                if prompt:
+                    print(create_communicator(GeneratorStatus.GENERATING, memory_space_index=memory_space_index, sound_event_index=sound_event_index, prompt_index=prompt_index, prompt=prompt))
+                    audio = generate(audio_pipe, parameters, prompt)
+                    cache_audio(audio_cache, memory_space_index, sound_event_index, prompt_index, audio)
+                    print(create_communicator(GeneratorStatus.CACHED, memory_space_index=memory_space_index, sound_event_index=sound_event_index, prompt_index=prompt_index))
+                    print(len(prompt_queue))
+                
+            except Exception as e:
+                print(e)
+                time.sleep(1)
 
-            
 
-
-class ParallelAudioGenerator:
+class ParallelProcessor:
 
     def __init__(self, model_path, api_key, audio_settings, audio_model_settings, llm_settings):
         self.llm_settings = llm_settings
