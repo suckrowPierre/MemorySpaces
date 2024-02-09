@@ -57,24 +57,59 @@ async function submitAnswers(id) {
 }
 
 
-var genenerator = null;
+var parallelProcessorWS = null;
 
 function connectGeneratWS() {
-    console.log("Connecting to generate websocket");
-    genenerator = new WebSocket(`ws://${window.location.host}${endpoints.generate}`);
-    genenerator.onopen = function() {
-        console.log("Connected to generate websocket");
-        genenerator.send("Hello from client");
+    console.log("Connecting to pp websocket");
+    parallelProcessorWS = new WebSocket(`ws://${window.location.host}${endpoints.parallel_processor_ws}`);
+    parallelProcessorWS.onopen = function() {
+        console.log("Connected to pp websocket");
     };
-    genenerator.onerror = function(error) {
+    parallelProcessorWS.onerror = function(error) {
         console.error("WebSocket Error:", error);
     };
-    genenerator.onmessage = function(event) {
-        console.log("Received message from generate websocket", event.data);
+    parallelProcessorWS.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log("WebSocket message received:", data);
+        if (data.memory_space_index == undefined) {
+            updateBubbleSubtext(1, data.statusParallelProcessor);
+            updateBubbleSubtext(2, data.statusParallelProcessor);
+            updateBubbleSubtext(3, data.statusParallelProcessor);
+        } 
+        if (data.statusParallelProcessor && data.memory_space_index) {
+            updateBubbleSubtext(data.memory_space_index, data.statusParallelProcessor);
+        }
+
     };
-    genenerator.onclose = function(event) {
-        console.log("Disconnected from generate websocket", event.reason);
+    parallelProcessorWS.onclose = function(event) {
+        console.log("Disconnected from pp websocket", event.reason);
     };
+}
+
+function getWebSocketCommunicator(command, data) {
+    return {
+        "input": command,
+        "data": data
+    };
+}
+
+function sendWebsocketMessage(ws, communicator){
+    ws.send(JSON.stringify(communicator));
+}
+
+function sendQA(bubbleId, qa) {
+    if (parallelProcessorWS === null) {
+        console.error("parallelProcessorWS is null");
+        return;
+    }
+    sendWebsocketMessage(parallelProcessorWS, getWebSocketCommunicator(input_enum.QA_INPUT, {bubbleId, qa}));
+}
+
+function updateBubbleSubtext(bubblenummer, subtext) {
+    const bubble = document.getElementById(`bubble${bubblenummer}`);
+    if (bubble) {
+        bubble.getElementsByClassName("bubble-sub-text")[0].textContent = subtext;
+    }
 }
 
 export { loadQuestionsAndAnswers

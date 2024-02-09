@@ -41,11 +41,11 @@ def test_extractor():
     path = Path("../data/models")
     generator = parallel_processor.ParallelProcessor(path, api_key,  audio_settings, audio_model_settings,
                                                                 llm_settings)
-    extractor_channel = generator.get_extractor_channel()
-    generator.init_generation_process()
-    generator.init_extraction_process()
+    extractor_channel = generator.get_parallel_process_parent_channel()
+    generator.init_audio_generation_process()
+    generator.init_prompt_extraction_process()
     msg = extractor_channel.recv()
-    while msg["status"] != parallel_processor.ExtractoStatus.WAITING:
+    while msg["status"] != parallel_processor.PromptExtractionStatus.WAITING:
         print(parallel_processor.communicator_to_string(msg))
         msg = extractor_channel.recv()
     print(parallel_processor.communicator_to_string(msg))
@@ -53,7 +53,7 @@ def test_extractor():
     file = open("QA.txt")
     qua = file.read()
 
-    extractor_channel.send(parallel_processor.create_communicator(parallel_processor.ExtractorCommCommand.QA_INPUT, qa=qua, memory_space_index=0))
+    extractor_channel.send(parallel_processor.create_communicator(parallel_processor.PromptExtractionInputs.QA_INPUT, qa=qua, memory_space_index=0))
 
     msg = extractor_channel.recv()
     while(True):
