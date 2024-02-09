@@ -1,1 +1,3 @@
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+#!/bin/bash
+source ./.env
+uvicorn app.main:app --reload --host $IP --port $PORT --ws websockets

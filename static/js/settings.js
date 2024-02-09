@@ -1,14 +1,14 @@
 let changes = {};
 
 async function loadSettings(fromDisk=false) {
-    var path = fromDisk ? '/settings/disk' : '/settings';
+    var path = fromDisk ? endpoints.settings_disk : endpoints.settings;
     const response = await fetch(path, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
     const data = await response.json();
     return data.settings || {};
 }
 
 async function saveSettings() {
-    const response = await fetch('/settings', {
+    const response = await fetch(endpoints.settings, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -25,7 +25,7 @@ async function saveSettings() {
 }
 
 async function startProgramm() {
-    const response = await fetch('/start', {
+    const response = await fetch(endpoints.start, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

@@ -192,7 +192,10 @@ class ParallelProcessor:
 
         self.model_path = str(model_path / audio_model_settings.pop("model"))
         self.device = audio_model_settings.pop("device")
-        self.parameters = audio_model_settings
+        self.parameters = audio_model_settings#
+
+        self.init_generation_process()
+        self.init_extraction_process()
 
     def get_generator_channel(self):
         return self.generator_parent_channel

@@ -2,7 +2,7 @@
 
 async function loadQuestionsAndAnswers() {
     try {
-        const response = await fetch('/questions', {
+        const response = await fetch(endpoints.questions, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ async function submitAnswers(id) {
     }
 
     try {
-        const response = await fetch('/generate', {
+        const response = await fetch(endpoints.generate, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -57,7 +57,27 @@ async function submitAnswers(id) {
 }
 
 
+var genenerator = null;
+
+function connectGeneratWS() {
+    console.log("Connecting to generate websocket");
+    genenerator = new WebSocket(`ws://${window.location.host}${endpoints.generate}`);
+    genenerator.onopen = function() {
+        console.log("Connected to generate websocket");
+        genenerator.send("Hello from client");
+    };
+    genenerator.onerror = function(error) {
+        console.error("WebSocket Error:", error);
+    };
+    genenerator.onmessage = function(event) {
+        console.log("Received message from generate websocket", event.data);
+    };
+    genenerator.onclose = function(event) {
+        console.log("Disconnected from generate websocket", event.reason);
+    };
+}
+
 export { loadQuestionsAndAnswers
-, submitAnswers};
+, submitAnswers, connectGeneratWS};
 
 

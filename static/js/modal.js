@@ -1,8 +1,10 @@
 import { loginContent, submitPassword } from './login.js';
-import { loadQuestionsAndAnswers, submitAnswers } from './q-a.js';
+import { loadQuestionsAndAnswers, submitAnswers, connectGeneratWS } from './q-a.js';
 import { getSettingHTML, loadSettings, initializeSettingsListeners, saveSettings, startProgramm } from './settings.js';
 
 var modal = document.getElementById("modal");
+
+connectGeneratWS();
 
 document.addEventListener("click", (event) => {
     const { id } = event.target;
