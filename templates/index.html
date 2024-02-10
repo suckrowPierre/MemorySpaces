@@ -15,17 +15,22 @@
 <body>
   <script type="text/javascript">
     const endpoints = JSON.parse('{{ endpoints | safe }}');
-    //const enums_json = JSON.parse('{{ enums | safe }}');
     //deserialize enums
-    //const input_enum = enums_json.input_enum;
-   // const output_enum = enums_json.output_enum;
+    const status_enum = JSON.parse('{{ status | safe }}');
+    if (!status_enum) {
+      console.error('Enums not found');
+    }
+    if (!endpoints) {
+      console.error('Endpoints not found');
+    }
+
 
   </script>
 
 <div class="bubble-container">
-  <div class="bubble" id="bubble1"><span class="bubble-text">1</span><span class="bubble-sub-text">nothing</span></div>
-  <div class="bubble" id="bubble2"><span class="bubble-text">2</span><span class="bubble-sub-text">nothing</span></div>
-  <div class="bubble" id="bubble3"><span class="bubble-text">3</span><span class="bubble-sub-text">nothing</span></div>
+  <div class="bubble" id="bubble1"><span class="bubble-text">1</span><br><span class="bubble-sub-text">nothing</span></div>
+  <div class="bubble" id="bubble2"><span class="bubble-text">2</span><br><span class="bubble-sub-text">nothing</span></div>
+  <div class="bubble" id="bubble3"><span class="bubble-text">3</span><br><span class="bubble-sub-text">nothing</span></div>
 </div>
 
 <div class="settings-icon">

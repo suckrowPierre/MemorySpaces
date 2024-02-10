@@ -1,5 +1,6 @@
 from openai import OpenAI
 import json
+import copy
 
 function_name = "formatAsJson"
 
@@ -59,7 +60,7 @@ class LLMApiConnector:
         self.message_construct = message_construct
 
     def append_q_and_a_to_message_construct(self, q_and_a):
-        copy_message_construct = self.message_construct.copy()
+        copy_message_construct = copy.deepcopy(self.message_construct)
         copy_message_construct[1]["content"] += q_and_a
         return copy_message_construct
 

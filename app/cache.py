@@ -64,3 +64,33 @@ def cache_to_string(cache):
             for k in range(len(cache[CacheStructure.DATA][i][j])):
                 string += f"        Prompt {k}: {cache[CacheStructure.DATA][i][j][k]}\n"
     return string
+
+def cache_status_to_string(cache):
+    if len(cache[CacheStructure.DATA]) == 0:
+        return "Cache is empty"
+    string = ""
+    for i in range(len(cache[CacheStructure.DATA])):
+        string += f"Memory space {i}: \n"
+        for j in range(len(cache[CacheStructure.DATA][i])):
+            string += f"    Sound event {j}: \n"
+            for k in range(len(cache[CacheStructure.DATA][i][j])):
+                if len(cache[CacheStructure.DATA][i][j][k]) == 0:
+                    string += f"        Prompt {k}: empty\n"
+                else:
+                    string += f"        Prompt {k}: AUDIO\n"
+    return string
+
+def cache_status_to_json(cache):
+    if len(cache[CacheStructure.DATA]) == 0:
+        return {"cache": "empty"}
+    json_output = {}
+    for i in range(len(cache[CacheStructure.DATA])):
+        json_output[f"memory_space_{i}"] = {}
+        for j in range(len(cache[CacheStructure.DATA][i])):
+            json_output[f"memory_space_{i}"][f"sound_event_{j}"] = {}
+            for k in range(len(cache[CacheStructure.DATA][i][j])):
+                if len(cache[CacheStructure.DATA][i][j][k]) == 0:
+                    json_output[f"memory_space_{i}"][f"sound_event_{j}"][f"prompt_{k}"] = "empty"
+                else:
+                    json_output[f"memory_space_{i}"][f"sound_event_{j}"][f"prompt_{k}"] = "AUDIO"
+    return json_output

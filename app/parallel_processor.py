@@ -25,8 +25,8 @@ class AudioGenerationStatus(Enum):
     UNBLOCKED = "Unblocked"
 
 class PromptExtractionStatus(Enum):
-    INITIALIZING = "Initializing LLM"
-    INITIALIZED = "LLM initialized"
+    INITIALIZING_LLM = "Initializing LLM"
+    INITIALIZED_LLM = "LLM initialized"
     WAITING = "Waiting for input"
     EXTRACTING = "Extracting prompts"
     PROMPTS_EXTRACTED = "Prompts extracted"
@@ -83,19 +83,22 @@ def queue_prompts(prompt_queue, llm_settings, memory_space_index, prompts):
     pq.add_prompts_to_queue_bulk(prompt_queue, prompts, memory_space_index, llm_settings["number_sound_events"], llm_settings["number_prompts"])
 
 
-def prompt_extraction_process(audio_generation_communication_pipe, audiogeneration_communication_pipe, generator_blocked_boolean, audio_cache, prompt_queue, llm_settings, api_key):
-    audio_generation_communication_pipe.send(create_communicator(PromptExtractionStatus.INITIALIZING))
+def prompt_extraction_process(parallel_process_communication_pipe, audiogeneration_communication_pipe, generator_blocked_boolean, audio_cache, prompt_queue, llm_settings, api_key):
+    parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.INITIALIZING_LLM))
 
     llm = LLMac.LLMApiConnector(api_key, **llm_settings)
-    print(create_communicator(PromptExtractionStatus.INITIALIZED))
+    parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.INITIALIZED_LLM))
+    
     wait_for_status(audiogeneration_communication_pipe, AudioGenerationStatus.INITIALIZED)
 
+
     while True:
-        audio_generation_communication_pipe.send(create_communicator(PromptExtractionStatus.WAITING))
-        msg = audio_generation_communication_pipe.recv()
+        parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.WAITING))
+        msg = parallel_process_communication_pipe.recv()
         if msg["command"] == PromptExtractionInputs.QA_INPUT:
             memory_space_index, qa = msg["memory_space_index"], msg["qa"]
             try:
+                parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.EXTRACTING, memory_space_index=memory_space_index))
                 # block and clear queue for memory space
                 block_generator(generator_blocked_boolean)
                 wait_for_status(audiogeneration_communication_pipe, AudioGenerationStatus.BLOCKED)
@@ -108,12 +111,15 @@ def prompt_extraction_process(audio_generation_communication_pipe, audiogenerati
                 wait_for_status(audiogeneration_communication_pipe, AudioGenerationStatus.UNBLOCKED)
                 print("unblocked generator")
                 prompts = extract_prompts(llm,qa)
+                print(str(prompts))
+                parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.PROMPTS_EXTRACTED, memory_space_index=memory_space_index))
                 
                 # block and queue prompts
                 block_generator(generator_blocked_boolean)
                 wait_for_status(audiogeneration_communication_pipe, AudioGenerationStatus.BLOCKED)
                 print("blocked generator to queue prompts")
                 queue_prompts(prompt_queue, llm_settings, memory_space_index, prompts)
+                parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.PROMPTS_QUEUED, memory_space_index=memory_space_index))
                 
                 # stop playback
                 # TODO
@@ -125,7 +131,7 @@ def prompt_extraction_process(audio_generation_communication_pipe, audiogenerati
                 print("unblocked generator")
             except Exception as e:
                 print(e)
-                audio_generation_communication_pipe.send(create_communicator(PromptExtractionStatus.ERROR))
+                parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.ERROR))
 
 def pop_prompt(prompt_queue):
     memory_space_index, sound_event_index, prompt_index, prompt = pq.pop_random_element(prompt_queue)
@@ -142,6 +148,7 @@ def cache_audio(audio_cache, memory_space_index, sound_event_index, prompt_index
 def audio_generation_process(audio_generation_communication_pipe, generator_blocked_boolean, model_path, device, parameters, audio_cache, prompt_queue, critical_mass=10):
     print(create_communicator(AudioGenerationStatus.INITIALIZING))
     audio_pipe = audioldm2.setup_pipeline(model_path, device)
+    print("pipe loaded")
     audio_generation_communication_pipe.send(create_communicator(AudioGenerationStatus.INITIALIZED))
 
     while True:

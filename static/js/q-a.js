@@ -86,24 +86,6 @@ function connectGeneratWS() {
     };
 }
 
-function getWebSocketCommunicator(command, data) {
-    return {
-        "input": command,
-        "data": data
-    };
-}
-
-function sendWebsocketMessage(ws, communicator){
-    ws.send(JSON.stringify(communicator));
-}
-
-function sendQA(bubbleId, qa) {
-    if (parallelProcessorWS === null) {
-        console.error("parallelProcessorWS is null");
-        return;
-    }
-    sendWebsocketMessage(parallelProcessorWS, getWebSocketCommunicator(input_enum.QA_INPUT, {bubbleId, qa}));
-}
 
 function updateBubbleSubtext(bubblenummer, subtext) {
     const bubble = document.getElementById(`bubble${bubblenummer}`);

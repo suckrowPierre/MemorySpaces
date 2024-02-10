@@ -11,6 +11,8 @@ from pathlib import Path
 import json
 from enum import Enum
 import asyncio
+from . import cache
+from . import prompt_queue
 from . import audio_interface_helper as aih
 from . import settings
 from . import parallel_processor
@@ -19,6 +21,7 @@ app = FastAPI()
 load_dotenv()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+cache_lock = asyncio.Lock()
 
 PASSWORD = hashlib.md5((os.getenv("PASSWORD").encode()))
 API_KEY = os.getenv("LLM_API_KEY")
@@ -27,6 +30,7 @@ MODEL_PATH = Path("./data/models")
 
 settings_cache = settings.SettingsCache()
 parallel_processor_instance = None
+parallel_processor_status = None
 
 
 testing_classes = {
@@ -34,21 +38,19 @@ testing_classes = {
 }
 
 class ParallelProcessorWebsocketStatus(Enum):
-    NOT_STARTED = "Not started"
-    INITIALIZING_LLM = "Initializing LLM"
-    READY = "Ready for input"
+    NOT_STARTED = "process not started"
+    INITIALIZING = "initializing"
+    SETTING_UP = "setting up"
+    READY = "ready"
 
-    EXTRACTING_PROMTPS = "Extracting prompts"
-    EXTRACTED_PROMPTS = "Prompts extracted"
+    EXTRACTING_PROMTPS = "extracting prompts"
+    EXTRACTED_PROMPTS = "prompts extracted"
 
-    PLAYING = "Playing"
-    BLOCKED = "Blocked"
-    UNBLOCKED = "Unblocked"
+    PLAYING = "playing"
+    BLOCKED = "blocked"
+    UNBLOCKED = "unblocked"
 
-    ERROR = "Error"
-
-class ParallelProcessorWebsocketInputs(Enum):
-    ANSWERS = "answers"
+    ERROR = "error"
 
 start_endpoint = "/start"
 login_endpoint = "/login"
@@ -59,15 +61,12 @@ parallel_processor_ws_endpoint = "/parallel_processor_ws"
 test_sine_out_endpoint = "/test_sine_out"
 stop_sine_out_endpoint = "/stop_sine_out"
 shutdown_sine_test_endpoint = "/shutdown_sine_test"
+generate_endpoint = "/generate"
+cache_endpoint = "/cache"
+queue_endpoint = "/queue"
 
 def serialize_enum(enum):
-    return {e.name: e.value for e in enum}
-
-enums = {
-    "input": serialize_enum(ParallelProcessorWebsocketStatus),
-    "status": serialize_enum(ParallelProcessorWebsocketInputs),
-}
-
+    return json.dumps({e.name: e.value for e in enum})
 
 def load_questions():
     with open("data/questions.txt", "r") as f:
@@ -89,19 +88,40 @@ async def get(request: Request):
         "parallel_processor_ws": parallel_processor_ws_endpoint,
         "test_sine_out": test_sine_out_endpoint,
         "stop_sine_out": stop_sine_out_endpoint,
-        "shutdown_sine_test": shutdown_sine_test_endpoint
+        "shutdown_sine_test": shutdown_sine_test_endpoint,
+        "generate": generate_endpoint
     }
     endpoints_json = json.dumps(endpoints)
-    print(endpoints_json)
-    return templates.TemplateResponse("index.html", {"request": request, "endpoints": endpoints_json, "enums": enums})
+    return templates.TemplateResponse("index.html", {"request": request, "endpoints": endpoints_json, "status": serialize_enum(ParallelProcessorWebsocketStatus)})
+
+@app.get(cache_endpoint)
+async def audio_cache():
+    async with cache_lock:  # Acquire the lock
+        global parallel_processor_instance
+        if parallel_processor_instance is None:
+            raise HTTPException(status_code=400, detail="Parallel processor not started")
+        audio_cache_json = {"cache": cache.cache_status_to_json(parallel_processor_instance.audio_cache)}
+        return JSONResponse(content=json.dumps(audio_cache_json, indent=4))
+
+
+@app.get(queue_endpoint)
+async def queue():
+    global parallel_processor_instance
+    if parallel_processor_instance is None:
+        raise HTTPException(status_code=400, detail="Parallel processor not started")
+    queue = prompt_queue.prompt_queue_to_string(parallel_processor_instance.prompt_queue)
+    return JSONResponse(content={"queue": queue})
+        
 
 @app.post(start_endpoint)
 async def start():
     global parallel_processor_instance
-    settings = get_settings_json(load_from_disk=True)
-    audio_settings = settings["settings"]["audio_settings"]
-    audio_model_settings = settings["settings"]["audio_model_settings"]
-    llm_settings = settings["settings"]["llm_settings"]
+    settings_cache.load_from_disk()
+    settings = settings_cache.get_settings()
+    audio_settings = settings["audio_settings"]
+    audio_model_settings = settings["audio_model_settings"]
+    print(audio_model_settings)
+    llm_settings = settings["llm_settings"]
     parallel_processor_instance = parallel_processor.ParallelProcessor(MODEL_PATH, API_KEY,  audio_settings, audio_model_settings,
                                                     llm_settings)
     return JSONResponse(content={"success": True})
@@ -122,39 +142,73 @@ class generatePayload(BaseModel):
     id: int
     answers: List[str]
 
-def get_websocket_communicator(status: ParallelProcessorWebsocketStatus, memory_space_index: int = -1):
-    if memory_space_index != -1:
-        return {"statusParallelProcessor": status.value, "memory_space_index": memory_space_index}
-    return {"statusParallelProcessor": status.value}
+@app.post(generate_endpoint)
+async def generate(payload: generatePayload):
+    global parallel_processor_status
+    if parallel_processor_instance is None:
+        raise HTTPException(status_code=400, detail="Parallel processor not started")
+    if parallel_processor_status is not ParallelProcessorWebsocketStatus.READY:
+        print(parallel_processor_status)
+        raise HTTPException(status_code=400, detail="Parallel processor not ready")
+    if payload.id is None:
+        raise HTTPException(status_code=400, detail="ID not provided")
+    if payload.answers is None:
+        raise HTTPException(status_code=400, detail="Answers not provided")
+    if len(payload.answers) != len(QUESTIONS):
+        raise HTTPException(status_code=400, detail="Incorrect number of answers")
+    answers = payload.answers
+    memory_space_index = payload.id - 1 
+    q_and_a = "\n".join([f"Q: {q}\n A:{a}" for q, a in zip(QUESTIONS, answers)])
+    print("Q AND A-------------------------------")
+    print(q_and_a)
+    print("Q AND A-------------------------------")
+    try:
+        communication_channel = parallel_processor_instance.get_parallel_process_parent_channel()
+        communication_channel.send(parallel_processor.create_communicator(parallel_processor.PromptExtractionInputs.QA_INPUT, qa=q_and_a, memory_space_index=memory_space_index))
+        return JSONResponse(content={"success": True})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
-
-
 @app.websocket(parallel_processor_ws_endpoint)
 async def parallel_processor_ws(websocket: WebSocket):
+    def get_websocket_communicator(status: ParallelProcessorWebsocketStatus, memory_space_index: int = -1):
+        if memory_space_index != -1:
+            return {"statusParallelProcessor": status.value, "memory_space_index": memory_space_index+1}
+        return {"statusParallelProcessor": status.value}
+
+    async def send(status: ParallelProcessorWebsocketStatus, memory_space_index: int = -1):
+        global parallel_processor_status
+        parallel_processor_status = status
+        await websocket.send_json(get_websocket_communicator(status, memory_space_index))
+
+
     await websocket.accept()
+    await send(ParallelProcessorWebsocketStatus.NOT_STARTED)
     while parallel_processor_instance is None:
-        await websocket.send_json(get_websocket_communicator(ParallelProcessorWebsocketStatus.NOT_STARTED))
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.1)
+
 
     parallel_processor_communication_pipe = parallel_processor_instance.get_parallel_process_parent_channel()
-    while True:
-        msg = parallel_processor_communication_pipe.recv()
-        print("MAIN PROCESS:" + str(msg))
-        if msg["status"] == parallel_processor.PromptExtractionStatus.INITIALIZING:
-            await websocket.send_json(get_websocket_communicator(ParallelProcessorWebsocketStatus.INITIALIZING_LLM))
-        elif msg["status"] == parallel_processor.PromptExtractionStatus.WAITING:
-            await websocket.send_json(get_websocket_communicator(ParallelProcessorWebsocketStatus.READY))
-            recieved = await websocket.receive_json()
-            if recieved["input"] == ParallelProcessorWebsocketInputs.ANSWERS.value:
-                answers = recieved["data"]
-                q_and_a = "\n".join([f"{q}\n{a}" for q, a in zip(QUESTIONS, answers)])
-                print("Q AND A-------------------------------")
-                print(q_and_a)
-                print("Q AND A-------------------------------")
-        elif msg["status"] == parallel_processor.PromptExtractionStatus.EXTRACTING:
-            await websocket.send_json(get_websocket_communicator(ParallelProcessorWebsocketStatus.EXTRACTING_PROMTPS, msg["memory_space_index"]))
-        elif msg["status"] == parallel_processor.PromptExtractionStatus.PROMPTS_EXTRACTED:
-            await websocket.send_json(get_websocket_communicator(ParallelProcessorWebsocketStatus.EXTRACTED_PROMPTS, msg["memory_space_index"]))
+    await websocket.send_json(get_websocket_communicator(ParallelProcessorWebsocketStatus.SETTING_UP))
+    while True:        
+        if parallel_processor_communication_pipe.poll():
+            msg = parallel_processor_communication_pipe.recv()
+            print("MAIN PROCESS:" + str(msg))
+            if msg["status"]:
+                if msg["status"] == parallel_processor.PromptExtractionStatus.INITIALIZING_LLM:
+                    await send(ParallelProcessorWebsocketStatus.INITIALIZING)
+                elif msg["status"] == parallel_processor.PromptExtractionStatus.WAITING:
+                    await send(ParallelProcessorWebsocketStatus.READY)
+                elif msg["status"] == parallel_processor.PromptExtractionStatus.EXTRACTING:
+                    await send(ParallelProcessorWebsocketStatus.EXTRACTING_PROMTPS, msg["memory_space_index"])
+                elif msg["status"] == parallel_processor.PromptExtractionStatus.PROMPTS_EXTRACTED:
+                    await send(ParallelProcessorWebsocketStatus.EXTRACTED_PROMPTS, msg["memory_space_index"])
+        
+        else:
+            await asyncio.sleep(0.1)
+                
+                
+        
 
 
 
