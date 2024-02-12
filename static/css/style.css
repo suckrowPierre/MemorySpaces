@@ -1,4 +1,4 @@
-body {
+html, body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
@@ -7,7 +7,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f0f0f0;
   }
   
   .settings-icon {
@@ -22,3 +21,13 @@ body {
   .settings-icon:hover {
     color: #c2c2c2;
   }
+
+  #video {
+    position: fixed; /* Use fixed position to ensure it covers the entire screen */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensure the aspect ratio is maintained while covering the full screen */
+    z-index: -1; /* Ensure it stays in the background */
+}

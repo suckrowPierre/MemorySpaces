@@ -27,6 +27,26 @@
 
   </script>
 
+<video id="video" autoplay></video>
+<script>
+    const videoElement = document.getElementById('video');
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: { aspectRatio: 16/9 } })
+        .then(function(stream) {
+            // Attach the video stream to the video element and autoplay.
+            videoElement.srcObject = stream;
+        })
+        .catch(function(error) {
+            console.error("Error accessing media devices.", error);
+        });
+    } else {
+        alert('getUserMedia not supported on your browser!');
+    }
+</script>
+
+
+
 <div class="bubble-container">
   <div class="bubble" id="bubble1"><span class="bubble-text">1</span><br><span class="bubble-sub-text">nothing</span></div>
   <div class="bubble" id="bubble2"><span class="bubble-text">2</span><br><span class="bubble-sub-text">nothing</span></div>
