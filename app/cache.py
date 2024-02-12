@@ -96,7 +96,7 @@ def cache_status_to_json(cache):
                     json_output[f"memory_space_{i}"][f"sound_event_{j}"][f"prompt_{k}"] = "AUDIO"
     return json_output
 
-def get_available_audio(cache, memory_space_index):
+def get_available_audio(cache, memory_space_index, sound_event_index):
     audios = []
     if memory_space_index >= len(cache[CacheStructure.DATA]):
         raise ValueError("memory space index [" + str(memory_space_index) + "] out of range")
@@ -104,18 +104,13 @@ def get_available_audio(cache, memory_space_index):
         return audios
     if len(cache[CacheStructure.DATA][memory_space_index]) == 0:
         return audios
-    for sound_event_index in range(len(cache[CacheStructure.DATA][memory_space_index])):
-        audios.append([])
-        for prompt_index in range(len(cache[CacheStructure.DATA][memory_space_index][sound_event_index])):
-            audio = cache[CacheStructure.DATA][memory_space_index][sound_event_index][prompt_index]
-            if len(audio) > 0:
-                audios.append(audio)
-    return audios
-
-def get_random_audio_from_available_audio(available_audio, sound_event_index):
-    if sound_event_index >= len(available_audio):
+    if sound_event_index >= len(cache[CacheStructure.DATA][memory_space_index]):
         raise ValueError("sound event index [" + str(sound_event_index) + "] out of range")
-    random_index = random.randint(0, len(available_audio[sound_event_index]) - 1)
-    audio = available_audio[sound_event_index][random_index]
-    return audio
+    if len(cache[CacheStructure.DATA][memory_space_index][sound_event_index]) == 0:
+        return audios
+    for prompt_index in range(len(cache[CacheStructure.DATA][memory_space_index][sound_event_index])):
+        audio = cache[CacheStructure.DATA][memory_space_index][sound_event_index][prompt_index]
+        if len(audio) > 0:
+            audios.append(audio)
+    return audios
 

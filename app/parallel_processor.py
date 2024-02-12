@@ -206,52 +206,35 @@ def sound_events_under_min_number_of_audio(available_audio, min_number_audio):
             return True
     return False
 
-def audio_playback_process(commonication_pipe, audio_cache, plackback_blocked, number_sound_events, memory_space_index, channel, amplitude, lower_bound_intervall_limit, upper_bound_intervall_limit, sr, device_index, critical_mass=2 ):
-    
-    s = Server(sr=44100, nchnls=1, buffersize=512, duplex=0)
+def audio_playback_process(communication_pipe, audio_cache, playback_blocked, number_sound_events, memory_space_index, channel, amplitude, lower_bound_interval_limit, upper_bound_interval_limit, sr, device_index, critical_mass=2 ):
+    s = Server(sr=sr, nchnls=3, buffersize=512, duplex=0)
     s.set_output_device(device_index)
     s.boot()
     s.start()
-    mixer = Mixer(outs=1, chnls=number_sound_events)
-
-
-    # play_head_information structure (playing, duration_in_sec, start_time, reader)
-    play_heads = []
-    for i in range(number_sound_events):
-        mixer.setAmp(i, channel, amplitude)
-        play_heads.append([False, 0, 0, None])
-
-    
-    while True:
-        if plackback_blocked.value:
-            commonication_pipe.send(create_communicator(PlaybackStatus.STOPPED, memory_space_index=memory_space_index))
-            time.sleep(1)
-            continue
+    def check_conditions_and_playback(sound_event_index):
+        available_audios = cache.get_available_audio(audio_cache, memory_space_index, sound_event_index)
+        if len(available_audios) < critical_mass or playback_blocked.value:
+            communication_pipe.send(create_communicator(PlaybackStatus.STOPPED, memory_space_index=memory_space_index))
         else:
-            available_audio = cache.get_available_audio(audio_cache, memory_space_index)
-            if sound_events_under_min_number_of_audio(available_audio, critical_mass):
-                commonication_pipe.send(create_communicator(PlaybackStatus.STOPPED, memory_space_index=memory_space_index))
-                time.sleep(1)
-                continue
-            else:
-                commonication_pipe.send(create_communicator(PlaybackStatus.PLAYING, memory_space_index=memory_space_index))
-                for i in range(number_sound_events):
-                    if not play_heads[i][0]:
-                        audio = cache.get_random_audio_from_available_audio(available_audio, i).tolist()
-                        random_interval = random.randint(lower_bound_intervall_limit, upper_bound_intervall_limit)
-                        duration = len(audio) / sr + random_interval
-                        table = DataTable(size=len(audio), chnls=1)
-                        table.replace(audio)
-                        table_read_freq = sr / float(len(audio))
-                        reader = TableRead(table, freq=table_read_freq, loop=False)
-                        mixer.addInput(i, reader)
-                        play_heads[i] = [True, duration, time.time(), reader]
-                    else:
-                        time.sleep(1)
-                        if time.time() - play_heads[i][2] > play_heads[i][1]:
-                            play_heads[i][3].stop()
-                            mixer.delInput(i)
-                            play_heads[i] = [False, 0, 0, None]
+            random_audios_index = random.randint(0, len(available_audios) - 1)
+            audio = available_audios[random_audios_index]
+            random_interval = random.randint(lower_bound_interval_limit, upper_bound_interval_limit)
+            table = DataTable(size=len(audio), chnls=1)
+            table.replace(audio)
+            table_read_freq = sr / float(len(audio))
+            reader = TableRead(table, freq=table_read_freq, loop=False, mul=amplitude)
+            reader.out(chnl=channel, delay=random_interval)
+            # Monitor `playback_blocked` and stop playback if it becomes True
+            TrigFunc(reader["trig"], lambda: check_conditions_and_playback(sound_event_index))
+
+    while True:
+        for sound_event_index in range(number_sound_events):
+            check_conditions_and_playback(sound_event_index)
+        time.sleep(1)
+
+
+
+
 
 
 
