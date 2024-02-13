@@ -13,7 +13,6 @@ from enum import Enum
 import asyncio
 from . import cache
 from . import prompt_queue
-from . import audio_interface_helper as aih
 from . import settings
 from . import parallel_processor
 
@@ -240,43 +239,17 @@ class testSinePayload(BaseModel):
 
 @app.get(test_sine_out_endpoint)
 async def test_sine_out(payload: testSinePayload):
-    try:
-        device_index = aih.get_device_index(aih.get_out_devices(), payload.device_name)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    if testing_classes["MultiOutsSineTest"] is None:
-        testing_classes["MultiOutsSineTest"] = aih.MultiOutsSineTest(device_index)
-    elif testing_classes["MultiOutsSineTest"].device_index != device_index:
-        testing_classes["MultiOutsSineTest"].shutdown()
-        testing_classes["MultiOutsSineTest"] = aih.MultiOutsSineTest(device_index)
-    try: 
-        testing_classes["MultiOutsSineTest"].add_sine(payload.channel, payload.freq, payload.volume_multiply)
         return JSONResponse(content={"success": True})
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
     
 class stopSinePayload(BaseModel):
     channel: int
     
 @app.get(stop_sine_out_endpoint)
 async def stop_sine_out(payload: stopSinePayload):
-    if testing_classes["MultiOutsSineTest"] is None:
-        raise HTTPException(status_code=400, detail="No sine test running")
-    try:
-        testing_classes["MultiOutsSineTest"].remove_sine(payload.channel)
         return JSONResponse(content={"success": True})
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get(shutdown_sine_test_endpoint)
 async def shutdown_sine_test():
-    if testing_classes["MultiOutsSineTest"] is None:
-        raise HTTPException(status_code=400, detail="No sine test running")
-    try:
-            del testing_classes["MultiOutsSineTest"]
-            testing_classes["MultiOutsSineTest"] = None
             return JSONResponse(content={"success": True})
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 

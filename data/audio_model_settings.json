@@ -1,7 +1,7 @@
 {
     "model": "audioldm2",
     "device": "cuda",
-    "audio_length_in_s" : 10,
+    "audio_length_in_s" : 30,
     "guidance_scale": 3,
     "num_inference_steps": 10,
     "negative_prompt": "low quality, average quality, noise, high pitch, artefacts",

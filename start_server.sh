@@ -1,3 +1,3 @@
 #!/bin/bash
 source ./.env
-uvicorn app.main:app --reload --host $IP --port $PORT --ws websockets
+uvicorn app.main:app --host $IP --port $PORT --ws websockets

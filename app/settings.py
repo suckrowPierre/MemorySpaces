@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import os
-from . import audio_interface_helper as aih
+from . import parallel_processor
 from copy import deepcopy
 
 
@@ -54,7 +54,7 @@ class SettingsCache:
     
     def get_settings_with_drop_down(self):
         settings_copy = deepcopy(self.settings)
-        settings_copy["audio_settings"]["device_options"] = filter_out_NVIDIA_devices(aih.get_devices_names(aih.get_out_devices()))
+        settings_copy["audio_settings"]["device_options"] = filter_out_NVIDIA_devices(parallel_processor.get_devices_names(parallel_processor.get_out_devices()))
         models_path = DATA_PATH / "models"
         settings_copy["audio_model_settings"]["model_options"] = [folder.name for folder in models_path.iterdir() if folder.is_dir()]
         settings_copy["audio_model_settings"]["device_options"] = ["mps", "cuda", "cpu"]

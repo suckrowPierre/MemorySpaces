@@ -1,30 +1,45 @@
-import audio_interface_helper
+import multiprocessing
 import time
 import random
 from pyo import *
+
+def process1():
+    s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
+    s.deactivateMidi()
+    s.setOutputDevice(0)
+    s.boot().start()
+    time.sleep(1)
+    sine1 = Noise(mul=0.1).out(chnl=0)
+    sine2 = Sine(freq=180, mul=0.1).out(chnl=0)
+
+    time.sleep(25)
+
+def process2():
+    time.sleep(500)
+    print("process2")
+
+def process3():
+    time.sleep(500)
+    print("process3")
+
+def process4():
+    time.sleep(500)
+    print("process4")
 
 
 
 
 def main():
-    outdevices = audio_interface_helper.get_out_devices()
-    device_index = audio_interface_helper.get_device_index(outdevices,"Quantum 2626")
-    s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
-    s.setOutputDevice(device_index)
-    s.boot()
-    s.start()
-    channel = 0
-
-
-    #sine1 = Sine(freq=440, mul=0.001).out(chnl=channel)
-    #sine2 = Sine(freq=220, mul=0.001).out(chnl=channel)
-    sine3 = Sine(freq=180, mul=0.001).out(chnl=channel, dur=5)
-    sine4 = Sine(freq=110, mul=0.001).out(chnl=channel, dur=10)
-    # mix sines into one output
-    #mix = Mix(sine1 + sine2 + sine3, voices=3).out(chnl=channel)
-
-    time.sleep(10)
-
+    p2 = multiprocessing.Process(target=process2)
+    p2.start()
+    p3 = multiprocessing.Process(target=process3)
+    p3.start()
+    p4 = multiprocessing.Process(target=process4)
+    p4.start()
+    p1 = multiprocessing.Process(target=process1)
+    p1.start()
+    time.sleep(50)
+    
 
 
 
