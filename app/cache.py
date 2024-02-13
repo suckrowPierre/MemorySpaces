@@ -114,3 +114,20 @@ def get_available_audio(cache, memory_space_index, sound_event_index):
             audios.append(audio)
     return audios
 
+def get_random_audios_for_memoryspace(cache, memory_space_index, critical_mass):
+    if memory_space_index >= len(cache[CacheStructure.DATA]):
+        raise ValueError("memory space index [" + str(memory_space_index) + "] out of range")
+    if len(cache[CacheStructure.DATA]) == 0:
+        return []
+    if len(cache[CacheStructure.DATA][memory_space_index]) == 0:
+        return []
+    
+    random_sound_events = []
+    for sound_event_index in range(len(cache[CacheStructure.DATA][memory_space_index])):
+        if len(cache[CacheStructure.DATA][memory_space_index][sound_event_index]) > 0:
+            availabel_audios = get_available_audio(cache, memory_space_index, sound_event_index)
+            if len(availabel_audios) < critical_mass:
+                return []
+            else:
+                random_sound_events.append(random.choice(availabel_audios))
+    return random_sound_events

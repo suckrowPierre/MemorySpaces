@@ -207,6 +207,7 @@ def sound_events_under_min_number_of_audio(available_audio, min_number_audio):
     return False
 
 def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, playback_blocked_3, channels, amplitude, lower_bound_interval_limit, upper_bound_interval_limit, sr, device_index, critical_mass=2 ):
+    
     s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
     s.deactivateMidi()
     s.setOutputDevice(device_index) # change this to the index of the device you want to use
@@ -217,19 +218,25 @@ def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, 
     playback_blocked_array = [playback_blocked_1, playback_blocked_2, playback_blocked_3]
 
     time.sleep(5)
-    print("AUDIO_PLAYBACK: sever started")
-    """
-    sine = Sine(freq=180, mul=0.1).out(chnl=0)
-    time.sleep(500)
-    """
-    
+
+    def play_audio(audio, channel):
+        audio_list = list(audio)
+        duration = len(audio_list) / sr
+        table = DataTable(size=len(audio_list), chnls=1)
+        table.replace(audio_list)
+        table_read_freq = sr / float(len(audio_list))
+        reader = TableRead(table, freq=table_read_freq, loop=False, mul=amplitude)
+        reader.out(chnl=channel)
+        return reader, duration
+
+
 
     #playhead structure [end_time, reader]
     playheads = []
     for i in range(len(audio_cache[cache.CacheStructure.DATA])):
-        playheads.append([])
+        playheads.append([0,[]])
         for j in range(len(audio_cache[cache.CacheStructure.DATA][i])):
-            playheads[i].append((0, None))
+            playheads[i][1].append((0, None))
     """
     noises = [(Sine(freq=180, mul=0.1), 0), (Noise(mul=0.1).out(chnl=0),0) , (Sine(freq=180, mul=0.1),1)]
     for i in range(len(audio_cache[cache.CacheStructure.DATA])):
@@ -242,49 +249,28 @@ def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, 
         for i in range(len(audio_cache[cache.CacheStructure.DATA])):
             if not playback_blocked_array[i].value:
                 if len (audio_cache[cache.CacheStructure.DATA][i]) > 0:
-                    for j in range(len(audio_cache[cache.CacheStructure.DATA][i])):
-                        # check if actual time is bigger than end time
-                        if time.time() > playheads[i][j][0]:
-                            audios = cache.get_available_audio(audio_cache, i, j)
-                            if len(audios) > critical_mass:
-                                print("playing audio for memory space " + str(i) + " and sound event " + str(j))
-                                
-
-                                random_index = random.randint(0, len(audios)-1)
-
-                                audio = audios[random_index]
-                                audio_array = np.array(audio, dtype=np.float64)
-                                audio_list = audio_array.tolist()
-
-                                audio_list = list(audios[random_index])
-                                #random_delay = random.randint(lower_bound_interval_limit, upper_bound_interval_limit)
-                                random_delay = 0
-                                duration = len(audio_list) / sr
-                                endtime = time.time() + duration + random_delay
-
-                                if playheads[i][j][1] != None:
-                                    playheads[i][j][1].stop()
-                                
-                                table = DataTable(size=len(audio_list), chnls=1)
-                                table.replace(audio_list)
-                                table_read_freq = sr / float(len(audio_list))
-                                reader = TableRead(table, freq=table_read_freq, loop=False, mul=amplitude)
-                                reader.out(chnl=channels[i], delay=random_delay)
-                                playheads[i][j] = (endtime, reader)
-                                time.sleep(0.1)
-                                
-                                """
-                            else:
-                                print("AUDIO_PLAYBACK: not enough audio for memory space " + str(i) + " and sound event " + str(j))
+                    if time.time() > playheads[i][0]:
+                        random_audios = cache.get_random_audios_for_memoryspace(audio_cache, i, critical_mass)
+                        if len(random_audios) > 0:
+                            delay = 0
+                            endtime = time.time() + delay
+                            longest_duration= 0
+                            for j in range(len(random_audios)):
+                                if len(random_audios[j]) > 0:
+                                    print("AUDIO_PLAYBACK: playing audio from memory space " + str(i) + " sound event " + str(j))
+                                    reader, duration = play_audio(random_audios[j], channels[i])
+                                    playheads[i][1][j] = reader
+                                    if duration > longest_duration:
+                                        longest_duration = duration
+                            playheads[i][0] = endtime + longest_duration
                         else: 
-                            print("AUDIO_PLAYBACK: Playhead playing for memory space " + str(i) + " and sound event " + str(j) + " until " + str(playheads[i][j]) + " actual time " + str(time.time()))
-                else :
-                    print("AUDIO_PLAYBACK: no sound events for memory space " + str(i))
-            else:
-                print("AUDIO_PLAYBACK: playback blocked for memory space " + str(i))
-        """
-        time.sleep(0.1)
+                            time.sleep(0.5)
+            time.sleep(0.5)
+    
 
+
+
+                    
    
 
 class ParallelProcessor:
