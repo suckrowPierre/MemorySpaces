@@ -6,7 +6,7 @@ from pyo import *
 def process1():
     s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
     s.deactivateMidi()
-    s.setOutputDevice(0)
+    s.setOutputDevice(25)
     s.boot().start()
     time.sleep(1)
     sine1 = Noise(mul=0.1).out(chnl=0)
@@ -15,8 +15,14 @@ def process1():
     time.sleep(25)
 
 def process2():
-    time.sleep(500)
-    print("process2")
+    s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
+    s.deactivateMidi()
+    s.setOutputDevice(25)
+    s.boot().start()
+    time.sleep(1)
+    sine2 = Sine(freq=180, mul=0.1).out(chnl=1)
+
+    time.sleep(25)
 
 def process3():
     time.sleep(500)

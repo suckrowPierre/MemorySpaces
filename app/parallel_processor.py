@@ -209,7 +209,7 @@ def sound_events_under_min_number_of_audio(available_audio, min_number_audio):
 def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, playback_blocked_3, channels, amplitude, lower_bound_interval_limit, upper_bound_interval_limit, sr, device_index, critical_mass=2 ):
     s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
     s.deactivateMidi()
-    s.setOutputDevice(0) # change this to the index of the device you want to use
+    s.setOutputDevice(device_index) # change this to the index of the device you want to use
 
     s.boot()
     s.start()
@@ -222,6 +222,7 @@ def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, 
     sine = Sine(freq=180, mul=0.1).out(chnl=0)
     time.sleep(500)
     """
+    
 
     #playhead structure [end_time, reader]
     playheads = []
@@ -230,9 +231,10 @@ def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, 
         for j in range(len(audio_cache[cache.CacheStructure.DATA][i])):
             playheads[i].append((0, None))
     """
+    noises = [(Sine(freq=180, mul=0.1), 0), (Noise(mul=0.1).out(chnl=0),0) , (Sine(freq=180, mul=0.1),1)]
     for i in range(len(audio_cache[cache.CacheStructure.DATA])):
-        print("sine" + str(i) + "channel" + str(channels[i]))
-        sine = Sine(freq=180, mul=0.1).out(chnl=channels[i])
+        playback = noises[i][0].out(chnl=noises[i][1])
+    time.sleep(500)
     """
 
     print("AUDIO_PLAYBACK: playheads initialized")
@@ -249,11 +251,11 @@ def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, 
                                 
 
                                 random_index = random.randint(0, len(audios)-1)
-                                """
+
                                 audio = audios[random_index]
                                 audio_array = np.array(audio, dtype=np.float64)
                                 audio_list = audio_array.tolist()
-                                """
+
                                 audio_list = list(audios[random_index])
                                 #random_delay = random.randint(lower_bound_interval_limit, upper_bound_interval_limit)
                                 random_delay = 0
@@ -270,8 +272,8 @@ def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, 
                                 reader.out(chnl=channels[i], delay=random_delay)
                                 playheads[i][j] = (endtime, reader)
                                 time.sleep(0.1)
+                                
                                 """
-
                             else:
                                 print("AUDIO_PLAYBACK: not enough audio for memory space " + str(i) + " and sound event " + str(j))
                         else: 
@@ -280,8 +282,9 @@ def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, 
                     print("AUDIO_PLAYBACK: no sound events for memory space " + str(i))
             else:
                 print("AUDIO_PLAYBACK: playback blocked for memory space " + str(i))
-                """
+        """
         time.sleep(0.1)
+
    
 
 class ParallelProcessor:
