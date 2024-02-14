@@ -15,6 +15,7 @@ from io import BytesIO
 app = FastAPI()
 
 DB_PATH = Path("./db/audio.db")
+number_of_sound_events = None
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -83,12 +84,51 @@ async def startup_event():
 async def helf():
     return {"message": "Hello World"}
 
+class numberSoundEvents(BaseModel):
+    # audio list of floats representing the audio data
+    number_sound_events: int
+
+
+@app.post("/set_number_sound_events/")
+async def number_sound_events(number_sound_events_payload: numberSoundEvents):
+    global number_of_sound_events
+    number_of_sound_events = number_sound_events_payload.number_sound_events
+    return {"success": True}
+
+@app.get("/number_sound_events")
+async def get_number_sound_events():
+    global number_of_sound_events
+    return {"number_sound_events": number_of_sound_events}
+
 @app.get("/memory_spaces")
 async def memory_spaces(conn: sqlite3.Connection = Depends(get_db_connection)):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM memory_space")
     memory_spaces = cursor.fetchall()
     return [dict(memory_space) for memory_space in memory_spaces]
+
+@app.post("/reset")
+async def reset(conn: sqlite3.Connection = Depends(get_db_connection)):
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM audio")
+    cursor.execute("DELETE FROM sound_event")
+    conn.commit()
+    return {"success": True}
+
+@app.get("/len_memory_spaces")
+async def len_memory_spaces(conn: sqlite3.Connection = Depends(get_db_connection)):
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM memory_space")
+    count = cursor.fetchone()[0]
+    return {"len_memory_spaces": count}
+
+@app.get("/len_sound_events/{memory_space_id}")
+async def len_sound_events(memory_space_id: int, conn: sqlite3.Connection = Depends(get_db_connection)):
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM sound_event WHERE memory_space_id = ?", (memory_space_id,))
+    count = cursor.fetchone()[0]
+    return {"len_sound_events": count}
+
 
 @app.get("/memory_spaces/{memory_space_id}")
 def return_sound_events_for_memory_space(memory_space_id: int, conn: sqlite3.Connection = Depends(get_db_connection)):
@@ -165,7 +205,7 @@ async def number_of_sound_events(memory_space_id: int, conn: sqlite3.Connection 
 async def random_audio(memory_space_id: int, sound_event_index: int, conn: sqlite3.Connection = Depends(get_db_connection)):
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT a.audio_data FROM audio a
+        SELECT a.audio_data, a.prompt FROM audio a
         JOIN sound_event se ON a.sound_event_id = se.id
         WHERE se.memory_space_id = ? AND se.sound_event_index = ?
         ORDER BY RANDOM() LIMIT 1
@@ -174,8 +214,9 @@ async def random_audio(memory_space_id: int, sound_event_index: int, conn: sqlit
     audio_row = cursor.fetchone()
     if audio_row:
         audio_array = pickle.loads(audio_row["audio_data"])
-        return {"audio": audio_array.tolist()}
-    return {"audio": None}
+        # Return both the audio data and the prompt
+        return {"prompt": audio_row["prompt"], "audio_data": audio_array.tolist()}
+    return {"audio_data": None, "prompt": None}
 
 
 

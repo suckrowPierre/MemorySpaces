@@ -69,40 +69,10 @@ function initializeSettingsListeners() {
 function getSettingHTML(settings) {
     return `<div class="settings">
         ${createButton("start-programm", "Start Programm") + createButton("save-settings", "Save Settings") + createButton("load-settings-from-disk", "Load Settings from Disk")}
-        ${createSettingsSection(settings, "audio_settings", createAudioSettingsContent)}
         ${createSettingsSection(settings, "audio_model_settings", createAudioModelSettingsContent)}
         ${createSettingsSection(settings, "llm_settings", createLLMSettingsContent)}
-        ${createSettingsSection(settings, "tracker_settings", () => '')}
         ${createSettingsSection(settings, "headphone_sensors_settings", () => '')}
     </div>`;
-}
-
-function createAudioSettingsContent(audioSettings) {
-    let content = '';
-    if (audioSettings.device_options) {
-        // check if device is in options
-        if(!audioSettings.device_options.includes(audioSettings.device) || audioSettings.device == ""){
-            if (!changes["audio_settings"]) {
-                changes["audio_settings"] = {};
-            }
-            audioSettings.device = audioSettings.device_options[0]
-            changes["audio_settings"]["device"] = audioSettings.device;
-        }
-        content += `Audio Device: ${createDropdown(`audio_settings-device`, audioSettings.device_options, audioSettings.device)}<br>`;
-    
-    }
-    for (let i = 1; i <= 3; i++) {
-        if (audioSettings[`channel${i}`]) {
-            content += `Channel ${i}: ${createInputField(`audio_settings-channel${i}`, "number", audioSettings[`channel${i}`])}`;
-        }
-        if (audioSettings[`sine${i}_freq`] && audioSettings[`sine${i}_volume`]) {
-            content += `Test Sine Freq: ${createInputField(`audio_settings-sine${i}_freq`, "number", audioSettings[`sine${i}_freq`])}`;
-            content += `Volume: ${createInputField(`audio_settings-sine${i}_volume`, "number", audioSettings[`sine${i}_volume`])}`;
-            content += `${createButton(`test-sine${i}`, "Test")}${createButton(`stop-sine${i}`, "Stop")}<br>`;
-        }
-    }
-    content += `${createButton("kill-all-test-sine", "Kill Test Sines")}<br>`;
-    return content;
 }
 
 function createAudioModelSettingsContent(audioModelSettings) {

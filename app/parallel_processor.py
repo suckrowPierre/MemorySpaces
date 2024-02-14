@@ -1,46 +1,21 @@
-from pyo import *
 import time
 import multiprocessing as mp
 import numpy as np
+import requests
 from enum import Enum
 import ctypes
 import random
-#import audioldm2
-#import cache
-#import LLM_api_connector as LLMac
-#import prompt_queue as pq
 from . import audioldm2
-from . import cache
 from . import LLM_api_connector as LLMac
 from . import prompt_queue as pq
 mp.set_start_method('spawn', force=True)
-
-def get_out_devices():
-    try:
-        outs = pa_get_output_devices()
-        if outs == []:
-            raise Exception("No output devices found")
-    except:
-        raise Exception("oa_get_output_devices() failed")
-    return outs
-
-
-def get_device_index(devices, name):
-    try:
-        index = devices[1][devices[0].index(name)]
-    except:
-        raise Exception("Device not found")
-    return index 
-
-def get_devices_names(devices):
-    return devices[0]
 
 class AudioGenerationStatus(Enum):
     INITIALIZING = "Initializing audio pipeline"
     INITIALIZED = "Audio pipeline initialized"
     GENERATING = "Generating audio"
     GENERATED = "Audio generated"
-    CACHED = "Audio cached"
+    TOBDB = "Sendt audio to DB"
 
     BLOCKED = "Blocked"
     UNBLOCKED = "Unblocked"
@@ -90,9 +65,6 @@ def wait_for_status(communication_pipe, status):
 def clear_memory_space_from_queue(prompt_queue, memory_space_index):
     pq.clear_memory_space_from_queue(prompt_queue, memory_space_index)
 
-def clear_memory_space_from_cache(audio_cache, memory_space_index):
-    cache.clear_memory_space(audio_cache, memory_space_index)
-
 def extract_prompts(llm, qa):
     return llm.extract_prompts(qa)
 
@@ -107,7 +79,7 @@ def queue_prompts(prompt_queue, llm_settings, memory_space_index, prompts):
     pq.add_prompts_to_queue_bulk(prompt_queue, prompts, memory_space_index, llm_settings["number_sound_events"], llm_settings["number_prompts"])
 
 
-def prompt_extraction_process(parallel_process_communication_pipe, audiogeneration_communication_pipe, generator_blocked_boolean, audio_cache, prompt_queue, llm_settings, api_key):
+def prompt_extraction_process(parallel_process_communication_pipe, audiogeneration_communication_pipe, generator_blocked_boolean, prompt_queue, llm_settings, api_key):
     parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.INITIALIZING_LLM))
 
     llm = LLMac.LLMApiConnector(api_key, **llm_settings)
@@ -130,6 +102,9 @@ def prompt_extraction_process(parallel_process_communication_pipe, audiogenerati
                 clear_memory_space_from_queue(prompt_queue, memory_space_index)
                 print("cleared memory")
 
+                # clear memory space from db
+                clear_memory_space_db(memory_space_index)
+
                 # unblock generator and extract prompts
                 unblock_generator(generator_blocked_boolean)
                 wait_for_status(audiogeneration_communication_pipe, AudioGenerationStatus.UNBLOCKED)
@@ -144,12 +119,8 @@ def prompt_extraction_process(parallel_process_communication_pipe, audiogenerati
                 print("blocked generator to queue prompts")
                 queue_prompts(prompt_queue, llm_settings, memory_space_index, prompts)
                 parallel_process_communication_pipe.send(create_communicator(PromptExtractionStatus.PROMPTS_QUEUED, memory_space_index=memory_space_index))
-                
-                # stop playback
-                # TODO
 
-                # clear audio cache and unblock generator
-                clear_memory_space_from_cache(audio_cache, memory_space_index)
+                # unblock generator
                 unblock_generator(generator_blocked_boolean)
                 wait_for_status(audiogeneration_communication_pipe, AudioGenerationStatus.UNBLOCKED)
                 print("unblocked generator")
@@ -166,10 +137,23 @@ def generate(audio_pipe, parameters, prompt):
     audio = audioldm2.text2audio(audio_pipe, model_parameters)
     return audio
 
-def cache_audio(audio_cache, memory_space_index, sound_event_index, prompt_index, audio):
-    cache.put_audio_array_into_cache(audio_cache, memory_space_index, sound_event_index, prompt_index, audio)
+def put_into_db(prompt, audio, memory_space_index, sound_event_index):
+    audio = audio.tolist()
+    BASE_URL = "http://0.0.0.0:5432" # makes this changeable from frontend
+    response = requests.post(f"{BASE_URL}/audio/{memory_space_index}/{sound_event_index}", json={"audio": audio, "prompt": prompt})
+    if response.status_code == 200:
+        return True
+    return False
 
-def audio_generation_process(audio_generation_communication_pipe, generator_blocked_boolean, model_path, device, parameters, audio_cache, prompt_queue):
+def clear_memory_space_db(memory_space_index):
+    BASE_URL = "http://0.0.0.0:5432" # makes this changeable from frontend
+    response = requests.post(f"{BASE_URL}/del_memory_space/{memory_space_index}")
+    if response.status_code == 200:
+        return True
+    return False
+
+
+def audio_generation_process(audio_generation_communication_pipe, generator_blocked_boolean, model_path, device, parameters, prompt_queue):
     print(create_communicator(AudioGenerationStatus.INITIALIZING))
     audio_pipe = audioldm2.setup_pipeline(model_path, device)
     print("pipe loaded")
@@ -191,129 +175,43 @@ def audio_generation_process(audio_generation_communication_pipe, generator_bloc
                 if prompt:
                     print(create_communicator(AudioGenerationStatus.GENERATING, memory_space_index=memory_space_index, sound_event_index=sound_event_index, prompt_index=prompt_index, prompt=prompt))
                     audio = generate(audio_pipe, parameters, prompt)
-                    cache_audio(audio_cache, memory_space_index, sound_event_index, prompt_index, audio)
-                    print(create_communicator(AudioGenerationStatus.CACHED, memory_space_index=memory_space_index, sound_event_index=sound_event_index, prompt_index=prompt_index))
+                    
+                    put_into_db(prompt, audio, memory_space_index, sound_event_index)
+
+                    print(create_communicator(AudioGenerationStatus.TOBDB, memory_space_index=memory_space_index, sound_event_index=sound_event_index, prompt_index=prompt_index))
                     print(len(prompt_queue))
                 
             except Exception as e:
                 print(e)
                 time.sleep(1)
-
-
-def sound_events_under_min_number_of_audio(available_audio, min_number_audio):
-    for sound_event in available_audio:
-        if len(sound_event) < min_number_audio:
-            return True
-    return False
-
-def audio_playback_process(audio_cache, playback_blocked_1, playback_blocked_2, playback_blocked_3, channels, amplitude, lower_bound_interval_limit, upper_bound_interval_limit, sr, device_index, critical_mass=2 ):
-    
-    s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
-    s.deactivateMidi()
-    s.setOutputDevice(device_index) # change this to the index of the device you want to use
-
-    s.boot()
-    s.start()
-
-    playback_blocked_array = [playback_blocked_1, playback_blocked_2, playback_blocked_3]
-
-    time.sleep(5)
-
-    def play_audio(audio, channel):
-        audio_list = list(audio)
-        duration = len(audio_list) / sr
-        table = DataTable(size=len(audio_list), chnls=1)
-        table.replace(audio_list)
-        table_read_freq = sr / float(len(audio_list))
-        reader = TableRead(table, freq=table_read_freq, loop=False, mul=amplitude)
-        reader.out(chnl=channel)
-        return reader, duration
-
-
-
-    #playhead structure [end_time, reader]
-    playheads = []
-    for i in range(len(audio_cache[cache.CacheStructure.DATA])):
-        playheads.append([0,[]])
-        for j in range(len(audio_cache[cache.CacheStructure.DATA][i])):
-            playheads[i][1].append((0, None))
-    """
-    noises = [(Sine(freq=180, mul=0.1), 0), (Noise(mul=0.1).out(chnl=0),0) , (Sine(freq=180, mul=0.1),1)]
-    for i in range(len(audio_cache[cache.CacheStructure.DATA])):
-        playback = noises[i][0].out(chnl=noises[i][1])
-    time.sleep(500)
-    """
-
-    print("AUDIO_PLAYBACK: playheads initialized")
-    while True:
-        for i in range(len(audio_cache[cache.CacheStructure.DATA])):
-            if not playback_blocked_array[i].value:
-                if len (audio_cache[cache.CacheStructure.DATA][i]) > 0:
-                    if time.time() > playheads[i][0]:
-                        random_audios = cache.get_random_audios_for_memoryspace(audio_cache, i, critical_mass)
-                        if len(random_audios) > 0:
-                            delay = 0
-                            endtime = time.time() + delay
-                            longest_duration= 0
-                            for j in range(len(random_audios)):
-                                if len(random_audios[j]) > 0:
-                                    print("AUDIO_PLAYBACK: playing audio from memory space " + str(i) + " sound event " + str(j))
-                                    reader, duration = play_audio(random_audios[j], channels[i])
-                                    playheads[i][1][j] = reader
-                                    if duration > longest_duration:
-                                        longest_duration = duration
-                            playheads[i][0] = endtime + longest_duration
-                        else: 
-                            time.sleep(0.5)
-            time.sleep(0.5)
-    
-
-
-
-                    
-   
+                       
 
 class ParallelProcessor:
 
-    def __init__(self, model_path, api_key, audio_settings, audio_model_settings, llm_settings):
+    def __init__(self, model_path, api_key, audio_model_settings, llm_settings):
         self.llm_settings = llm_settings
         self.api_key = api_key
 
         self.generator_blocked = mp.Value(ctypes.c_bool, False)
-        self.playback_memory_space1_blocked = mp.Value(ctypes.c_bool, False)
-        self.playback_memory_space2_blocked = mp.Value(ctypes.c_bool, False)
-        self.playback_memory_space3_blocked = mp.Value(ctypes.c_bool, False)
-
-        self.sr = 16000
-        self.channels = [audio_settings["channel1"]-1, audio_settings["channel2"]-1, audio_settings["channel3"]-1]
-        self.interface_index = get_device_index(get_out_devices(), audio_settings["device"]) 
-        self.amplitude = 0.1
-        self.lower_bound_intervall_limit = 1
-        self.upper_bound_intervall_limit = 4
-        self.critical_mass = 2
 
         self.number_sound_events = llm_settings["number_sound_events"]
         self.number_prompts = llm_settings["number_prompts"]
 
         self.manager = mp.Manager()
-        self.audio_cache = cache.initialize_cache(self.manager, len(self.channels), llm_settings['number_sound_events'],
-                                                  llm_settings['number_prompts'])
-
+        
         self.prompt_queue = pq.initialize_prompt_queue(self.manager)
         self.audio_generation_parent_channel, self.audio_generation_child_channel = mp.Pipe(duplex=True)
         self.parallel_process_parent_channel, self.parallel_process_child_channel = mp.Pipe(duplex=True)
 
         self.prompt_extraction_process = None
         self.audio_generation_process = None
-        self.playback_process = None
 
         self.model_path = str(model_path / audio_model_settings.pop("model"))
         self.device = audio_model_settings.pop("device")
-        self.parameters = audio_model_settings#
+        self.parameters = audio_model_settings
 
         self.init_audio_generation_process()
         self.init_prompt_extraction_process()
-        self.init_playback_process()
 
     def get_audio_generation_parent_channel(self):
         return self.audio_generation_parent_channel
@@ -321,46 +219,17 @@ class ParallelProcessor:
     def get_parallel_process_parent_channel(self):
         return self.parallel_process_parent_channel
 
-    def clear_memory_space(self, memory_space):
-        cache.clear_memory_space(self.audio_cache, memory_space)
-
-    def put_audio_array_into_cache(self, memory_space_index, sound_event_index, prompt_index, audio_data):
-        cache.put_audio_array_into_cache(self.audio_cache, memory_space_index, sound_event_index, prompt_index,
-                                         audio_data)
-
-    def get_audio_from_cache(self, memory_space_index, sound_event_index, prompt_index):
-        return cache.get_audio_from_cache(self.audio_cache, memory_space_index, sound_event_index, prompt_index)
-
-    def print_cache(self):
-        print(cache.cache_to_string(self.audio_cache))
-
     def print_prompt_queue(self):
         print(self.prompt_queue)
-        # print(pq.prompt_queue_to_string(self.prompt_queue))
 
     def init_audio_generation_process(self):
         self.audio_generation_process = mp.Process(target=audio_generation_process, args=(
-            self.audio_generation_child_channel, self.generator_blocked , self.model_path, self.device, self.parameters, self.audio_cache, self.prompt_queue))
+            self.audio_generation_child_channel, self.generator_blocked , self.model_path, self.device, self.parameters, self.prompt_queue))
         self.audio_generation_process.start()
 
     def init_prompt_extraction_process(self):
         self.prompt_extraction_process = mp.Process(target=prompt_extraction_process, args=(
-            self.parallel_process_child_channel, self.audio_generation_parent_channel, self.generator_blocked ,self.audio_cache, self.prompt_queue, self.llm_settings, self.api_key))
+            self.parallel_process_child_channel, self.audio_generation_parent_channel, self.generator_blocked , self.prompt_queue, self.llm_settings, self.api_key))
         self.prompt_extraction_process.start()
-
-    def init_playback_process(self):
-        self.playback_process = mp.Process(target=audio_playback_process, args=(
-            self.audio_cache, 
-            self.playback_memory_space1_blocked, 
-            self.playback_memory_space2_blocked, 
-            self.playback_memory_space3_blocked, 
-            self.channels, 
-            self.amplitude, 
-            self.lower_bound_intervall_limit, 
-            self.upper_bound_intervall_limit, 
-            self.sr, 
-            self.interface_index,
-            self.critical_mass))
-        self.playback_process.start()
     
 

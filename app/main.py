@@ -11,7 +11,7 @@ from pathlib import Path
 import json
 from enum import Enum
 import asyncio
-from . import cache
+import requests
 from . import prompt_queue
 from . import settings
 from . import parallel_processor
@@ -61,7 +61,6 @@ test_sine_out_endpoint = "/test_sine_out"
 stop_sine_out_endpoint = "/stop_sine_out"
 shutdown_sine_test_endpoint = "/shutdown_sine_test"
 generate_endpoint = "/generate"
-cache_endpoint = "/cache"
 queue_endpoint = "/queue"
 
 def serialize_enum(enum):
@@ -93,16 +92,6 @@ async def get(request: Request):
     endpoints_json = json.dumps(endpoints)
     return templates.TemplateResponse("index.html", {"request": request, "endpoints": endpoints_json, "status": serialize_enum(ParallelProcessorWebsocketStatus)})
 
-@app.get(cache_endpoint)
-async def audio_cache():
-    async with cache_lock:  # Acquire the lock
-        global parallel_processor_instance
-        if parallel_processor_instance is None:
-            raise HTTPException(status_code=400, detail="Parallel processor not started")
-        audio_cache_json = {"cache": cache.cache_status_to_json(parallel_processor_instance.audio_cache)}
-        return JSONResponse(content=json.dumps(audio_cache_json, indent=4))
-
-
 @app.get(queue_endpoint)
 async def queue():
     global parallel_processor_instance
@@ -111,18 +100,42 @@ async def queue():
     queue = prompt_queue.prompt_queue_to_string(parallel_processor_instance.prompt_queue)
     return JSONResponse(content={"queue": queue})
         
+def clear_db(URL):
+    response = requests.post(f"{URL}/reset", json={})
+    if response.status_code == 200:
+        return True
+    return False
+
+def set_number_sound_events_DB(URL, number_sound_events):
+    if number_sound_events is None:
+        raise HTTPException(status_code=400, detail="Number sound events not provided")
+    
+    response = requests.post(f"{URL}/set_number_sound_events", json={"number_sound_events": int(number_sound_events)})
+    if response.status_code == 200:
+        return True
+    return False
 
 @app.post(start_endpoint)
 async def start():
     global parallel_processor_instance
     settings_cache.load_from_disk()
     settings = settings_cache.get_settings()
-    audio_settings = settings["audio_settings"]
     audio_model_settings = settings["audio_model_settings"]
-    print(audio_model_settings)
     llm_settings = settings["llm_settings"]
-    parallel_processor_instance = parallel_processor.ParallelProcessor(MODEL_PATH, API_KEY,  audio_settings, audio_model_settings,
-                                                    llm_settings)
+
+    URL = "http://0.0.0.0:5432" 
+    # clear db 
+    if not clear_db(URL):
+        raise HTTPException(status_code=400, detail="Could not clear db")
+    
+    if not set_number_sound_events_DB(URL, llm_settings["number_sound_events"]):
+        raise HTTPException(status_code=400, detail="Could not set number_sound_events")
+    
+
+
+
+
+    parallel_processor_instance = parallel_processor.ParallelProcessor(MODEL_PATH, API_KEY, audio_model_settings, llm_settings)
     return JSONResponse(content={"success": True})
 
 @app.post(login_endpoint)
@@ -207,9 +220,6 @@ async def parallel_processor_ws(websocket: WebSocket):
             await asyncio.sleep(0.1)
                 
                 
-        
-
-
 
 def get_settings_json(load_from_disk: bool = False):
     if load_from_disk:
@@ -231,25 +241,5 @@ async def save_settings(settings: dict):
     settings_cache.save_setting(settings)
     return JSONResponse(content={"success": True})
 
-class testSinePayload(BaseModel):
-    device_name: str
-    channel: int
-    freq: float
-    volume_multiply: float
-
-@app.get(test_sine_out_endpoint)
-async def test_sine_out(payload: testSinePayload):
-        return JSONResponse(content={"success": True})
-    
-class stopSinePayload(BaseModel):
-    channel: int
-    
-@app.get(stop_sine_out_endpoint)
-async def stop_sine_out(payload: stopSinePayload):
-        return JSONResponse(content={"success": True})
-
-@app.get(shutdown_sine_test_endpoint)
-async def shutdown_sine_test():
-            return JSONResponse(content={"success": True})
 
 
