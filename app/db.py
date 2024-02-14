@@ -28,12 +28,18 @@ def get_db_connection():
 def create_db(conn):
     cursor = conn.cursor()
 
+    # delte tables if they exist
+    cursor.execute("DROP TABLE IF EXISTS memory_space")
+    cursor.execute("DROP TABLE IF EXISTS sound_event")
+    cursor.execute("DROP TABLE IF EXISTS audio")
+
     # Create memory spaces table
     cursor.execute("CREATE TABLE IF NOT EXISTS memory_space (id INTEGER PRIMARY KEY)")
 
     # Create sound event table
     cursor.execute("""CREATE TABLE IF NOT EXISTS sound_event (
         id INTEGER PRIMARY KEY, 
+        sound_event_index INTEGER,
         memory_space_id INTEGER, 
         FOREIGN KEY(memory_space_id) REFERENCES memory_space(id))""")
 
@@ -41,6 +47,7 @@ def create_db(conn):
     cursor.execute("""CREATE TABLE IF NOT EXISTS audio (
         id INTEGER PRIMARY KEY, 
         sound_event_id INTEGER, 
+        prompt TEXT NOT NULL,
         audio_data TEXT NOT NULL, 
         FOREIGN KEY(sound_event_id) REFERENCES sound_event(id))""")
 
@@ -83,53 +90,67 @@ async def memory_spaces(conn: sqlite3.Connection = Depends(get_db_connection)):
     memory_spaces = cursor.fetchall()
     return [dict(memory_space) for memory_space in memory_spaces]
 
+@app.get("/memory_spaces/{memory_space_id}")
+def return_sound_events_for_memory_space(memory_space_id: int, conn: sqlite3.Connection = Depends(get_db_connection)):
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sound_event WHERE memory_space_id = ?", (memory_space_id,))
+    sound_events = cursor.fetchall()
+    return [dict(sound_event) for sound_event in sound_events]
+
+@app.get("/sound_events")
+def get_sound_events(conn: sqlite3.Connection = Depends(get_db_connection)):
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM sound_event")
+    sound_events = cursor.fetchall()
+    return [dict(sound_event) for sound_event in sound_events]
+
 class audioPayload(BaseModel):
     # audio list of floats representing the audio data
     audio: List[float]
+    prompt: str
 
-class InitSoundEventsRequest(BaseModel):
-    number_sound_events: int
-
-@app.post("/init_sound_events")
-async def init_sound_events(request: InitSoundEventsRequest, conn: sqlite3.Connection = Depends(get_db_connection)):
-    number_sound_events = request.number_sound_events
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM memory_space")
-    memory_spaces = cursor.fetchall()
-    for memory_space in memory_spaces:
-        for i in range(number_sound_events):
-            cursor.execute("INSERT INTO sound_event (memory_space_id) VALUES (?)", (memory_space["id"],))
-    conn.commit()
-    return {"success": True}
-
-@app.post("/audio/{memory_space_id}/{sound_event_id}")
-async def audio(memory_space_id: int, sound_event_id: int, payload: audioPayload, conn: sqlite3.Connection = Depends(get_db_connection)):
+@app.post("/audio/{memory_space_id}/{sound_event_index}")
+async def audio(memory_space_id: int, sound_event_index: int, payload: audioPayload, conn: sqlite3.Connection = Depends(get_db_connection)):
     audio_list = payload.audio
     audio_array = np.array(audio_list, dtype=np.float64)  # Use np.float64 for high precision
-    # Serialize the NumPy array using pickle
-    audio_pickle = pickle.dumps(audio_array)
+    audio_pickle = pickle.dumps(audio_array)  # Serialize the NumPy array using pickle
+    prompt = payload.prompt
+
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO audio (sound_event_id, audio_data) VALUES (?, ?)", (sound_event_id, audio_pickle))
+    # Check if sound event exists for this memory space and sound_event_index
+    cursor.execute("SELECT id FROM sound_event WHERE memory_space_id = ? AND sound_event_index = ?", (memory_space_id, sound_event_index))
+    sound_event = cursor.fetchone()
+    if sound_event is None:
+        # Create new sound event
+        cursor.execute("INSERT INTO sound_event (sound_event_index, memory_space_id) VALUES (?, ?)", (sound_event_index, memory_space_id))
+        sound_event_id = cursor.lastrowid
+    else:
+        sound_event_id = sound_event['id']
+    
+    # Insert audio data into audio table
+    cursor.execute("INSERT INTO audio (sound_event_id, prompt, audio_data) VALUES (?, ?, ?)", (sound_event_id, prompt, audio_pickle))
     conn.commit()
-    return {"success": True}
+    return {"success": True, "sound_event_id": sound_event_id}
 
-@app.get("/audios/{memory_space_id}/{sound_event_id}")
-async def audios(memory_space_id: int, sound_event_id: int, conn: sqlite3.Connection = Depends(get_db_connection)):
+@app.get("/audios/{memory_space_id}/{sound_event_index}")
+async def audios(memory_space_id: int, sound_event_index: int, conn: sqlite3.Connection = Depends(get_db_connection)):
     cursor = conn.cursor()
-    cursor.execute("SELECT audio_data FROM audio WHERE sound_event_id = ?", (sound_event_id,))
-    audio_row = cursor.fetchone()
-    if audio_row:
-        audio_pickle = audio_row["audio_data"]
-        # Deserialize the NumPy array from pickle
-        audio_array = pickle.loads(audio_pickle)
-        audio_list = audio_array.tolist()
-        return {"audio": audio_list}
-    return {"audio": None}
+    cursor.execute("""
+        SELECT a.* FROM audio a
+        JOIN sound_event se ON a.sound_event_id = se.id
+        WHERE se.memory_space_id = ? AND se.sound_event_index = ?
+    """, (memory_space_id, sound_event_index))
+    
+    audios = cursor.fetchall()
+    audio_list = [pickle.loads(audio["audio_data"]).tolist() for audio in audios]
+    return {"audios": audio_list}
 
-@app.post("/del_audio/{memory_space_id}}")
+@app.post("/del_memory_space/{memory_space_id}}")
 async def del_audio(memory_space_id: int, conn: sqlite3.Connection = Depends(get_db_connection)):
     cursor = conn.cursor()
     cursor.execute("DELETE FROM audio WHERE sound_event_id IN (SELECT id FROM sound_event WHERE memory_space_id = ?)", (memory_space_id,))
+    # delte sound events for memory space
+    cursor.execute("DELETE FROM sound_event WHERE memory_space_id = ?", (memory_space_id,))
     conn.commit()
     return {"success": True}
 
@@ -140,14 +161,21 @@ async def number_of_sound_events(memory_space_id: int, conn: sqlite3.Connection 
     count = cursor.fetchone()[0]
     return {"number_of_sound_events": count}
 
-@app.get("/random_audio/{memory_space_id}/{sound_event_id}")
-async def random_audio(memory_space_id: int, sound_event_id: int, conn: sqlite3.Connection = Depends(get_db_connection)):
+@app.get("/random_audio/{memory_space_id}/{sound_event_index}")
+async def random_audio(memory_space_id: int, sound_event_index: int, conn: sqlite3.Connection = Depends(get_db_connection)):
     cursor = conn.cursor()
-    cursor.execute("SELECT audio_data FROM audio WHERE sound_event_id = ? ORDER BY RANDOM() LIMIT 1", (sound_event_id,))
-    audio = cursor.fetchone()
-    return {"audio": audio}
-
-
+    cursor.execute("""
+        SELECT a.audio_data FROM audio a
+        JOIN sound_event se ON a.sound_event_id = se.id
+        WHERE se.memory_space_id = ? AND se.sound_event_index = ?
+        ORDER BY RANDOM() LIMIT 1
+    """, (memory_space_id, sound_event_index))
+    
+    audio_row = cursor.fetchone()
+    if audio_row:
+        audio_array = pickle.loads(audio_row["audio_data"])
+        return {"audio": audio_array.tolist()}
+    return {"audio": None}
 
 
 
