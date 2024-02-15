@@ -13,11 +13,51 @@
 
 </head>
 <body>
+  <script type="text/javascript">
+    const endpoints = JSON.parse('{{ endpoints | safe }}');
+    //deserialize enums
+    const status_enum = JSON.parse('{{ status | safe }}');
+    if (!status_enum) {
+      console.error('Enums not found');
+    }
+    if (!endpoints) {
+      console.error('Endpoints not found');
+    }
+
+
+  </script>
+
+<video id="video" autoplay></video>
+<script>
+    const videoElement = document.getElementById('video');
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: { aspectRatio: 16/9 } })
+        .then(function(stream) {
+            // Attach the video stream to the video element and autoplay.
+            videoElement.srcObject = stream;
+        })
+        .catch(function(error) {
+            console.error("Error accessing media devices.", error);
+        });
+    } else {
+        alert('getUserMedia not supported on your browser!');
+    }
+</script>
+
+<div id="explenation-text">
+  <p>
+    Engage with an immersive auditory journey by selecting an unoccupied section. Complete the questionnaire to generate a personalized soundscape, an auditory interpretation of a memory you describe. The sound sources of each section are located within the enclosure’s plastic bounds. Explore your soundscape by navigating to your source or partake in the auditory memory of others by approaching their source. Prior to initiating your soundscape, please ensure that the corresponding headphones, marked with the same numeral as your section, are available outside the enclosure. If not, please be patient until the previous participant has finished his experience. Upon activation of your soundscape, you are invited to enter the space, linger for the duration that suits you, and immerse yourself in the recollection. We kindly ask that you remove your footwear before entering. The unmarked headphones can be used to listen in to the evolving soundscapes from the outside. 
+  </p>
+
+</div>
+
+
 
 <div class="bubble-container">
-  <div class="bubble" id="bubble1"><span class="bubble-text">1</span></div>
-  <div class="bubble" id="bubble2"><span class="bubble-text">2</span></div>
-  <div class="bubble" id="bubble3"><span class="bubble-text">3</span></div>
+  <div class="bubble" id="bubble1"><span class="bubble-text">1</span><br><span class="bubble-subtext">nothing</span></div>
+  <div class="bubble" id="bubble2"><span class="bubble-text">2</span><br><span class="bubble-subtext">nothing</span></div>
+  <div class="bubble" id="bubble3"><span class="bubble-text">3</span><br><span class="bubble-subtext">nothing</span></div>
 </div>
 
 <div class="settings-icon">

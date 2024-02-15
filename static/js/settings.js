@@ -1,14 +1,14 @@
 let changes = {};
 
 async function loadSettings(fromDisk=false) {
-    var path = fromDisk ? '/settings/disk' : '/settings';
+    var path = fromDisk ? endpoints.settings_disk : endpoints.settings;
     const response = await fetch(path, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
     const data = await response.json();
     return data.settings || {};
 }
 
 async function saveSettings() {
-    const response = await fetch('/settings', {
+    const response = await fetch(endpoints.settings, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -24,7 +24,21 @@ async function saveSettings() {
     changes = {};
 }
 
-
+async function startProgramm() {
+    const response = await fetch(endpoints.start, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+    });
+    const data = await response.json();
+    if (data.success) {
+        alert("Programm started successfully");
+    } else {
+        alert("Error starting programm");
+    }
+}
 
 
 function initializeSettingsListeners() {
@@ -55,40 +69,9 @@ function initializeSettingsListeners() {
 function getSettingHTML(settings) {
     return `<div class="settings">
         ${createButton("start-programm", "Start Programm") + createButton("save-settings", "Save Settings") + createButton("load-settings-from-disk", "Load Settings from Disk")}
-        ${createSettingsSection(settings, "audio_settings", createAudioSettingsContent)}
         ${createSettingsSection(settings, "audio_model_settings", createAudioModelSettingsContent)}
         ${createSettingsSection(settings, "llm_settings", createLLMSettingsContent)}
-        ${createSettingsSection(settings, "tracker_settings", () => '')}
-        ${createSettingsSection(settings, "headphone_sensors_settings", () => '')}
     </div>`;
-}
-
-function createAudioSettingsContent(audioSettings) {
-    let content = '';
-    if (audioSettings.device_options) {
-        // check if device is in options
-        if(!audioSettings.device_options.includes(audioSettings.device) || audioSettings.device == ""){
-            if (!changes["audio_settings"]) {
-                changes["audio_settings"] = {};
-            }
-            audioSettings.device = audioSettings.device_options[0]
-            changes["audio_settings"]["device"] = audioSettings.device;
-        }
-        content += `Audio Device: ${createDropdown(`audio_settings-device`, audioSettings.device_options, audioSettings.device)}<br>`;
-    
-    }
-    for (let i = 1; i <= 3; i++) {
-        if (audioSettings[`channel${i}`]) {
-            content += `Channel ${i}: ${createInputField(`audio_settings-channel${i}`, "number", audioSettings[`channel${i}`])}`;
-        }
-        if (audioSettings[`sine${i}_freq`] && audioSettings[`sine${i}_volume`]) {
-            content += `Test Sine Freq: ${createInputField(`audio_settings-sine${i}_freq`, "number", audioSettings[`sine${i}_freq`])}`;
-            content += `Volume: ${createInputField(`audio_settings-sine${i}_volume`, "number", audioSettings[`sine${i}_volume`])}`;
-            content += `${createButton(`test-sine${i}`, "Test")}${createButton(`stop-sine${i}`, "Stop")}<br>`;
-        }
-    }
-    content += `${createButton("kill-all-test-sine", "Kill Test Sines")}<br>`;
-    return content;
 }
 
 function createAudioModelSettingsContent(audioModelSettings) {
@@ -111,18 +94,18 @@ function createAudioModelSettingsContent(audioModelSettings) {
         content += `Num Inference Steps: ${createInputField("audio_model_settings-negative_prompt-num_inference_steps", "number", audioModelSettings.num_inference_steps)}<br>`;
     }
     if (audioModelSettings.negative_prompt){
-        content += `Negative Prompt: ${createInputField("audio_model_settings-negative_prompt", "text", audioModelSettings.negative_prompt)}<br>`;
+        content += `Negative Prompt: ${createInputField("audio_model_settings-negative_prompt", "text", audioModelSettings.negative_prompt, "half-long-input-text")}<br>`;
     }
     return content;
 }
 
 function createLLMSettingsContent(llmSettings) {
     let content = '';
-    if (llmSettings.number_soundevents){
+    if (llmSettings.number_sound_events){
         //validation if whole int 
-        content += `Number Soundevents: ${createInputField("llm_settings-number_soundevents", "number", llmSettings.number_soundevents)}<br>`;
+        content += `Number Soundevents: ${createInputField("llm_settings-number_sound_events", "number", llmSettings.number_sound_events)}<br>`;
     }
-    if (llmSettings. number_prompts){
+    if (llmSettings.number_prompts){
         //validation if whole int 
         content += `Number Prompts: ${createInputField("llm_settings-number_prompts", "number", llmSettings.number_prompts)}<br>`;
     }
@@ -143,15 +126,15 @@ function createDropdown(id, array, defaultValue) {
 }
 
 function createInputField(id, type, value, html_class="settings-input") {
-    return `<input class="${html_class}" type="${type}" id="${id}" value="${value}">`;
+    return `<input class="${html_class} input-field" type="${type}" id="${id}" value="${value}">`;
 }
 
 function createButton(id, text) {
-    return `<button class="settings-button" id="${id}">${text}</button>`;
+    return `<button class="settings-button button" id="${id}">${text}</button>`;
 }
 
 function createSettingsSection(settings, sectionName, contentGenerator) {
     return settings[sectionName] ? `<div class="${sectionName}"><h2>${sectionName.replace(/_/g, ' ')}</h2>${contentGenerator(settings[sectionName])}</div><br>` : '';
 }
 
-export { loadSettings, getSettingHTML, initializeSettingsListeners, saveSettings};
+export { loadSettings, getSettingHTML, initializeSettingsListeners, saveSettings, startProgramm};

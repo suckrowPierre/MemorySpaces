@@ -6,6 +6,10 @@
         width: 80%;
 }
 
+.half-long-input-text {
+        width: 70%;
+}
+
 #negative-prompt {
     width: 70%;
 }

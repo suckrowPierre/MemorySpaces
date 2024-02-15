@@ -6,24 +6,31 @@
   }
   
   .bubble {
-    background-color: #f4c2c2; 
-    width: 400px;
-    height: 300px;
-    border-radius: 200px / 150px;
+    width: 900px;
+    height: 700px;
+    border-radius: 500px / 100px;
     display: flex;
     justify-content: center;
     align-items: center;
     position: absolute;
     cursor: pointer;
+    border: 9px solid rgb(60, 226, 60); /* Add this line for a green border */
   }
 
+/*  border: 8px solid rgb(171, 0, 0); /* Add this line for a green border */
+
   .bubble:hover {
-    background-color: #ffcbcb; 
+    border: 9px solid rgb(172, 233, 172); /* Add this line for a green border */
   }
   
   
   .bubble-text {
-    font-size: 3rem;
+    font-size: 10rem;
+    color: white;
+  }
+
+  .bubble-subtext {
+    font-size: 2.5rem;
     color: white;
   }
   

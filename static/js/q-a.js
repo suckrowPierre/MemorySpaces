@@ -2,7 +2,7 @@
 
 async function loadQuestionsAndAnswers() {
     try {
-        const response = await fetch('/questions', {
+        const response = await fetch(endpoints.questions, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -20,10 +20,10 @@ async function loadQuestionsAndAnswers() {
 function getQuestionsAndAnswersBlock(questions) {
     return questions.map((question, index) => `
         <div class="question-answer">
-            <h1 class="question">${question}</h1>
-            <input class="answer" type="text" id="answer${index}">
+            <p class="question">${question}</p>
+            <input class="answer input-field" type="text" id="answer${index}">
         </div>
-    `).join('') + `<br><br><div><button id="submit-answers">Submit Answers</button></div>`;
+    `).join('') + `<div><button id="submit-answers" class="button">Submit Answers</button></div>`;
 }
 
 async function submitAnswers(id) {
@@ -36,7 +36,7 @@ async function submitAnswers(id) {
     }
 
     try {
-        const response = await fetch('/generate', {
+        const response = await fetch(endpoints.generate, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -57,7 +57,44 @@ async function submitAnswers(id) {
 }
 
 
+var parallelProcessorWS = null;
+
+function connectGeneratWS() {
+    console.log("Connecting to pp websocket");
+    parallelProcessorWS = new WebSocket(`ws://${window.location.host}${endpoints.parallel_processor_ws}`);
+    parallelProcessorWS.onopen = function() {
+        console.log("Connected to pp websocket");
+    };
+    parallelProcessorWS.onerror = function(error) {
+        console.error("WebSocket Error:", error);
+    };
+    parallelProcessorWS.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log("WebSocket message received:", data);
+        if (data.memory_space_index == undefined) {
+            updateBubbleSubtext(1, data.statusParallelProcessor);
+            updateBubbleSubtext(2, data.statusParallelProcessor);
+            updateBubbleSubtext(3, data.statusParallelProcessor);
+        } 
+        if (data.statusParallelProcessor && data.memory_space_index) {
+            updateBubbleSubtext(data.memory_space_index, data.statusParallelProcessor);
+        }
+
+    };
+    parallelProcessorWS.onclose = function(event) {
+        console.log("Disconnected from pp websocket", event.reason);
+    };
+}
+
+
+function updateBubbleSubtext(bubblenummer, subtext) {
+    const bubble = document.getElementById(`bubble${bubblenummer}`);
+    if (bubble) {
+        bubble.getElementsByClassName("bubble-subtext")[0].textContent = subtext;
+    }
+}
+
 export { loadQuestionsAndAnswers
-, submitAnswers};
+, submitAnswers, connectGeneratWS};
 
 

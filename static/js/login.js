@@ -10,7 +10,7 @@ function hashPassword(password) {
 async function submitPassword(password) {
     const hashedPassword = await hashPassword(password); 
     try {
-        const response = await fetch('/login', {
+        const response = await fetch(endpoints.login, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
