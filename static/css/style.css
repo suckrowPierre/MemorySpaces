@@ -31,3 +31,32 @@ html, body {
     object-fit: cover; /* Ensure the aspect ratio is maintained while covering the full screen */
     z-index: -1; /* Ensure it stays in the background */
 }
+
+#explenation-text {
+    font-family: Arial, sans-serif;
+    width: 40%;
+    margin-left: 40px;
+    padding: 0;
+    color: white;
+    font-size: 3.5em;
+    z-index: 1;
+}
+
+.button {
+  font-size: 2em;
+  cursor: pointer;
+  background-color: rgb(217, 217, 217, 0.9);
+  color: #ffffff;
+  font-size: 1em;
+  z-index: 1;
+  border: 5px solid #ffffff;
+  border-radius: 10px;
+}
+
+.input-field {
+  height: 45px;
+  font-size: 3.5rem;
+  background-color: rgb(217, 217, 217, 0.9); /* Fallback color */
+  border: none;
+  color: #ffffff;
+}

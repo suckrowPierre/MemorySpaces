@@ -28,6 +28,11 @@
     font-size: 10rem;
     color: white;
   }
+
+  .bubble-subtext {
+    font-size: 2.5rem;
+    color: white;
+  }
   
   #bubble1 {
     top: 45%;

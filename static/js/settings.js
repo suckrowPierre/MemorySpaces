@@ -71,7 +71,6 @@ function getSettingHTML(settings) {
         ${createButton("start-programm", "Start Programm") + createButton("save-settings", "Save Settings") + createButton("load-settings-from-disk", "Load Settings from Disk")}
         ${createSettingsSection(settings, "audio_model_settings", createAudioModelSettingsContent)}
         ${createSettingsSection(settings, "llm_settings", createLLMSettingsContent)}
-        ${createSettingsSection(settings, "headphone_sensors_settings", () => '')}
     </div>`;
 }
 
@@ -95,7 +94,7 @@ function createAudioModelSettingsContent(audioModelSettings) {
         content += `Num Inference Steps: ${createInputField("audio_model_settings-negative_prompt-num_inference_steps", "number", audioModelSettings.num_inference_steps)}<br>`;
     }
     if (audioModelSettings.negative_prompt){
-        content += `Negative Prompt: ${createInputField("audio_model_settings-negative_prompt", "text", audioModelSettings.negative_prompt)}<br>`;
+        content += `Negative Prompt: ${createInputField("audio_model_settings-negative_prompt", "text", audioModelSettings.negative_prompt, "half-long-input-text")}<br>`;
     }
     return content;
 }
@@ -127,11 +126,11 @@ function createDropdown(id, array, defaultValue) {
 }
 
 function createInputField(id, type, value, html_class="settings-input") {
-    return `<input class="${html_class}" type="${type}" id="${id}" value="${value}">`;
+    return `<input class="${html_class} input-field" type="${type}" id="${id}" value="${value}">`;
 }
 
 function createButton(id, text) {
-    return `<button class="settings-button" id="${id}">${text}</button>`;
+    return `<button class="settings-button button" id="${id}">${text}</button>`;
 }
 
 function createSettingsSection(settings, sectionName, contentGenerator) {

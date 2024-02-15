@@ -2,10 +2,10 @@
     display: none; /* Hidden by default */
     position: fixed; /* Stay in place */
     z-index: 1; /* Sit on top */
-    left: 50%;
+    left: 62%;
     top: 50%;
     transform: translate(-50%, -50%); /* Center the modal */
-    width: 2400px;
+    width: 2200px;
     height: 1600px;
     background-color: rgb(217, 217, 217, 0.8); /* Fallback color */
     /* border-radius: 15px; Optional: for rounded corners */
@@ -13,20 +13,47 @@
 }
 
 .modal-content {
+    font-family: Arial, sans-serif;
     position: relative;
     overflow: auto;
     max-height: 90%; /* Adjust as needed */
-    padding: 10px;
+    padding: 0px;
+    margin-top: 40px;
+    margin-left: 0px;
+    margin-left: 40px;
     color: #ffffff;
-    font-size: 2rem;
+    font-size: 3.5rem;
 }
 
+.question {
+    margin-right: 40px;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.answer {
+    margin-top: 0;
+    padding-top: 10px;
+    padding-bottom: 30px;
+    margin-bottom: 40px;
+    width: calc(99% - 40px);
+}
 .close-button {
     position: absolute;
-    top: 10px; /* Adjust as needed */
+    margin: 0;
+    padding: 0;
+    top: 0px; /* Adjust as needed */
     right: 10px; /* Adjust as needed */
     color: #ffffff;
-    font-size: 28px;
+    font-size: 5rem;
     font-weight: bold;
     cursor: pointer;
+}
+
+#submit-answers {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
 }

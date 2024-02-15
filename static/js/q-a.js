@@ -20,10 +20,10 @@ async function loadQuestionsAndAnswers() {
 function getQuestionsAndAnswersBlock(questions) {
     return questions.map((question, index) => `
         <div class="question-answer">
-            <h1 class="question">${question}</h1>
-            <input class="answer" type="text" id="answer${index}">
+            <p class="question">${question}</p>
+            <input class="answer input-field" type="text" id="answer${index}">
         </div>
-    `).join('') + `<br><br><div><button id="submit-answers">Submit Answers</button></div>`;
+    `).join('') + `<div><button id="submit-answers" class="button">Submit Answers</button></div>`;
 }
 
 async function submitAnswers(id) {
@@ -90,7 +90,7 @@ function connectGeneratWS() {
 function updateBubbleSubtext(bubblenummer, subtext) {
     const bubble = document.getElementById(`bubble${bubblenummer}`);
     if (bubble) {
-        bubble.getElementsByClassName("bubble-sub-text")[0].textContent = subtext;
+        bubble.getElementsByClassName("bubble-subtext")[0].textContent = subtext;
     }
 }
 
