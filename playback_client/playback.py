@@ -64,7 +64,7 @@ def playback_process(channel, device_index, memory_space_index, sound_event_inde
     s.boot().start()
     time.sleep(1)
 
-    def play_audio(audio, channel, delay, sr=16000, amplitude=0.1):
+    def play_audio(audio, channel, delay, sr=16000, amplitude=0.7):
         audio_list = list(audio)
         duration = len(audio_list) / sr
         table = DataTable(size=len(audio_list), chnls=1)
@@ -87,7 +87,7 @@ def playback_process(channel, device_index, memory_space_index, sound_event_inde
 
 
 def sine_test_process(channel, device_index, freq, volume_multiply):
-    s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
+    s = Server(sr=48000, nchnls=3, buffersize=512, duplex=0)
     s.deactivateMidi()
     s.setOutputDevice(device_index)
     s.boot().start()
@@ -97,7 +97,7 @@ def sine_test_process(channel, device_index, freq, volume_multiply):
         time.sleep(1)
 
 def noise_test_process(channel, device_index, volume_multiply):
-    s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
+    s = Server(sr=48000, nchnls=3, buffersize=512, duplex=0)
     s.deactivateMidi()
     s.setOutputDevice(device_index)
     s.boot().start()
@@ -107,12 +107,14 @@ def noise_test_process(channel, device_index, volume_multiply):
         time.sleep(1)
 
 def test():
-    device = "Scarlett 8i6 USB"
+    device = "Quantum 2626"
+    device_list = get_out_devices()
+    print(device_list)
     device_index = get_device_index(get_out_devices(), device)
     processes = []
     processes.append(mp.Process(target=sine_test_process, args=(0, device_index, 440, 0.1)))
     processes.append(mp.Process(target=noise_test_process, args=(1, device_index, 0.1)))
-    processes.append(mp.Process(target=sine_test_process, args=(2, device_index, 880, 0.1)))
+    processes.append(mp.Process(target=sine_test_process, args=(2, device_index, 880, 0.5)))
     for p in processes:
         p.start()
     for p in processes:
@@ -122,7 +124,7 @@ def test():
 
 def main():
     print(get_out_devices())
-    device = "Scarlett 8i6 USB"
+    device = "Quantum 2626"
     device_index = get_device_index(get_out_devices(), device)
 
     number_sound_events = get_number_sound_events()
@@ -150,4 +152,5 @@ def main():
 
 
 if __name__ == "__main__":
+    #test()
     main()
