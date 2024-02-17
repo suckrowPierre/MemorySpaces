@@ -86,14 +86,38 @@ def playback_process(channel, device_index, memory_space_index, sound_event_inde
             time.sleep(0.1)
 
 
-def test_sine_test_process(channel, device_index, freq, volume_multiply):
+def sine_test_process(channel, device_index, freq, volume_multiply):
     s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
     s.deactivateMidi()
     s.setOutputDevice(device_index)
     s.boot().start()
     time.sleep(1)
     sine = Sine(freq=freq, mul=volume_multiply).out(chnl=channel)
-    time.sleep(100)
+    while True:
+        time.sleep(1)
+
+def noise_test_process(channel, device_index, volume_multiply):
+    s = Server(sr=44100, nchnls=4, buffersize=512, duplex=0)
+    s.deactivateMidi()
+    s.setOutputDevice(device_index)
+    s.boot().start()
+    time.sleep(1)
+    noise = Noise(mul=volume_multiply).out(chnl=channel)
+    while True:
+        time.sleep(1)
+
+def test():
+    device = "Scarlett 8i6 USB"
+    device_index = get_device_index(get_out_devices(), device)
+    processes = []
+    processes.append(mp.Process(target=sine_test_process, args=(0, device_index, 440, 0.1)))
+    processes.append(mp.Process(target=noise_test_process, args=(1, device_index, 0.1)))
+    processes.append(mp.Process(target=sine_test_process, args=(2, device_index, 880, 0.1)))
+    for p in processes:
+        p.start()
+    for p in processes:
+        p.join()
+    print("Done")
 
 
 def main():
@@ -121,6 +145,8 @@ def main():
         p.join()
 
     print("Done")
+
+
 
 
 if __name__ == "__main__":
