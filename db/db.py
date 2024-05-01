@@ -185,7 +185,7 @@ async def audios(memory_space_id: int, sound_event_index: int, conn: sqlite3.Con
     audio_list = [pickle.loads(audio["audio_data"]).tolist() for audio in audios]
     return {"audios": audio_list}
 
-@app.post("/del_memory_space/{memory_space_id}}")
+@app.post("/del_memory_space/{memory_space_id}")
 async def del_audio(memory_space_id: int, conn: sqlite3.Connection = Depends(get_db_connection)):
     cursor = conn.cursor()
     cursor.execute("DELETE FROM audio WHERE sound_event_id IN (SELECT id FROM sound_event WHERE memory_space_id = ?)", (memory_space_id,))

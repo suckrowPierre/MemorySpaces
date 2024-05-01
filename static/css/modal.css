@@ -39,6 +39,7 @@
     padding-bottom: 30px;
     margin-bottom: 40px;
     width: calc(99% - 40px);
+    color: #ffffff;
 }
 .close-button {
     position: absolute;

@@ -15,6 +15,7 @@ import requests
 from . import prompt_queue
 from . import settings
 from . import parallel_processor
+import datetime
 
 app = FastAPI()
 load_dotenv()
@@ -25,6 +26,11 @@ cache_lock = asyncio.Lock()
 PASSWORD = hashlib.md5((os.getenv("PASSWORD").encode()))
 API_KEY = os.getenv("LLM_API_KEY")
 MODEL_PATH = Path("./data/models")
+LOGGING_FOLDER = Path(os.getenv("LOGGING_FOLDER"))
+
+# create logging folder if it does not exist
+if not os.path.exists(LOGGING_FOLDER):
+    os.makedirs(LOGGING_FOLDER)
 
 
 settings_cache = settings.SettingsCache()
@@ -62,6 +68,13 @@ stop_sine_out_endpoint = "/stop_sine_out"
 shutdown_sine_test_endpoint = "/shutdown_sine_test"
 generate_endpoint = "/generate"
 queue_endpoint = "/queue"
+
+def log_qa(qa: str):
+    time_stemp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    log_file_path = LOGGING_FOLDER / f"{time_stemp}_qa_log.txt"  # Use / to join paths
+    with open(log_file_path, "a") as f:
+        f.write(qa)
+
 
 def serialize_enum(enum):
     return json.dumps({e.name: e.value for e in enum})
@@ -171,6 +184,7 @@ async def generate(payload: generatePayload):
     answers = payload.answers
     memory_space_index = payload.id - 1 
     q_and_a = "\n".join([f"Q: {q}\n A:{a}" for q, a in zip(QUESTIONS, answers)])
+    log_qa(q_and_a)
     print("Q AND A-------------------------------")
     print(q_and_a)
     print("Q AND A-------------------------------")
