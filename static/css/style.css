@@ -35,11 +35,16 @@ html, body {
 #explenation-text {
     font-family: Arial, sans-serif;
     width: 40%;
-    margin-left: 40px;
+    margin-left: 100px;
     padding: 0;
     color: white;
     font-size: 3.5em;
     z-index: 1;
+}
+
+#explenation-text {
+    color: white;
+    font-size: 2.5em;
 }
 
 .button {

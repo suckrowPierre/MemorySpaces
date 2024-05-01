@@ -3,6 +3,9 @@ data/models/
 /__pycache__
 /app/__pycache_
 /credentials
+/db/audio.db
+*.db
+
 
 
 
